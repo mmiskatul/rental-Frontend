@@ -1,0 +1,92 @@
+import { useState } from "react";
+import Link from "next/link";
+import { Search, Eye, Check, X } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { bookings, getCar, formatCurrency, type BookingStatus } from "@/lib/mock-data";
+import { toast } from "sonner";
+
+const tabs: ("all" | BookingStatus)[] = ["all", "pending", "approved", "active", "completed", "rejected", "cancelled"];
+
+export default function AdminBookings() {
+  const [tab, setTab] = useState<string>("all");
+  const [q, setQ] = useState("");
+  const list = bookings.filter((b) => {
+    if (tab !== "all" && b.status !== tab) return false;
+    if (q && !`${b.id} ${b.customerName} ${getCar(b.carId)?.name}`.toLowerCase().includes(q.toLowerCase())) return false;
+    return true;
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl font-bold sm:text-3xl">Booking management</h1>
+        <p className="mt-1 text-muted-foreground">Review, approve and manage all bookings.</p>
+      </div>
+
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search by ID, customer, car…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+          </div>
+          <Select defaultValue="all"><SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All payments</SelectItem><SelectItem value="paid">Paid</SelectItem><SelectItem value="pending">Pending</SelectItem></SelectContent>
+          </Select>
+        </div>
+      </Card>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="overflow-x-auto">{tabs.map((t) => <TabsTrigger key={t} value={t} className="capitalize">{t}</TabsTrigger>)}</TabsList>
+      </Tabs>
+
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-border bg-secondary/50 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">Booking</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Car</th>
+                <th className="px-4 py-3">Dates</th>
+                <th className="px-4 py-3">Total</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {list.map((b) => {
+                const car = getCar(b.carId);
+                return (
+                  <tr key={b.id} className="hover:bg-secondary/30">
+                    <td className="px-4 py-3"><p className="font-semibold">{b.id}</p><p className="text-xs text-muted-foreground">{b.createdAt}</p></td>
+                    <td className="px-4 py-3"><p className="font-medium">{b.customerName}</p><p className="text-xs text-muted-foreground">{b.customerEmail}</p></td>
+                    <td className="px-4 py-3 text-muted-foreground">{car?.name}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{b.startDate} → {b.endDate}</td>
+                    <td className="px-4 py-3 font-semibold">{formatCurrency(b.total)}</td>
+                    <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        {b.status === "pending" && (
+                          <>
+                            <Button size="icon" className="h-8 w-8 bg-success hover:bg-success/90 text-success-foreground" onClick={() => toast.success("Booking approved")}><Check className="h-4 w-4" /></Button>
+                            <Button size="icon" variant="outline" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => toast.success("Booking rejected")}><X className="h-4 w-4" /></Button>
+                          </>
+                        )}
+                        <Button asChild variant="ghost" size="icon" className="h-8 w-8"><Link href={`/admin/bookings/${b.id}`}><Eye className="h-4 w-4" /></Link></Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}

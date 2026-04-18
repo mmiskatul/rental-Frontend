@@ -5,6 +5,13 @@ import carCompact from "@/assets/car-compact.jpg";
 import carEv from "@/assets/car-ev.jpg";
 import carLuxurySuv from "@/assets/car-luxury-suv.jpg";
 
+const carSuvSrc = carSuv.src;
+const carSedanSrc = carSedan.src;
+const carSportsSrc = carSports.src;
+const carCompactSrc = carCompact.src;
+const carEvSrc = carEv.src;
+const carLuxurySuvSrc = carLuxurySuv.src;
+
 export type BookingStatus =
   | "pending"
   | "approved"
@@ -68,8 +75,8 @@ export const cars: Car[] = [
     available: true,
     rating: 4.9,
     reviews: 128,
-    image: carSedan,
-    gallery: [carSedan, carLuxurySuv, carSuv],
+    image: carSedanSrc,
+    gallery: [carSedanSrc, carLuxurySuvSrc, carSuvSrc],
     features: ["Leather Seats", "Panoramic Roof", "Adaptive Cruise", "360° Camera", "Heated Seats", "Premium Sound"],
     description:
       "Experience the pinnacle of luxury with the Mercedes S-Class. Designed for discerning travelers, this flagship sedan combines effortless performance with a serenely quiet cabin and the latest driver-assistance technology.",
@@ -96,8 +103,8 @@ export const cars: Car[] = [
     available: true,
     rating: 4.8,
     reviews: 96,
-    image: carLuxurySuv,
-    gallery: [carLuxurySuv, carSuv, carSedan],
+    image: carLuxurySuvSrc,
+    gallery: [carLuxurySuvSrc, carSuvSrc, carSedanSrc],
     features: ["AWD", "Apple CarPlay", "Wireless Charging", "Sport Mode", "Tow Hitch", "Sunroof"],
     description:
       "The BMW X5 delivers a perfect balance of athletic performance and family practicality. Spacious for seven, agile on the road, and equipped with intuitive iDrive technology.",
@@ -124,8 +131,8 @@ export const cars: Car[] = [
     available: true,
     rating: 4.7,
     reviews: 215,
-    image: carSuv,
-    gallery: [carSuv, carEv, carCompact],
+    image: carSuvSrc,
+    gallery: [carSuvSrc, carEvSrc, carCompactSrc],
     features: ["Hybrid Engine", "Lane Assist", "Apple CarPlay", "All-Wheel Drive", "Adaptive Cruise"],
     description:
       "Reliable, efficient, and effortlessly capable. The RAV4 Hybrid is the smart choice for road trips, daily commutes, and weekend escapes alike.",
@@ -152,8 +159,8 @@ export const cars: Car[] = [
     available: true,
     rating: 4.9,
     reviews: 342,
-    image: carEv,
-    gallery: [carEv, carSuv, carLuxurySuv],
+    image: carEvSrc,
+    gallery: [carEvSrc, carSuvSrc, carLuxurySuvSrc],
     features: ["Autopilot", "330 mi Range", "Glass Roof", "15\" Touchscreen", "Supercharger Access"],
     description:
       "Glide silently into the future. The Tesla Model Y Long Range offers exhilarating acceleration, cutting-edge tech, and zero emissions.",
@@ -180,8 +187,8 @@ export const cars: Car[] = [
     available: false,
     rating: 4.6,
     reviews: 178,
-    image: carCompact,
-    gallery: [carCompact, carSports, carSedan],
+    image: carCompactSrc,
+    gallery: [carCompactSrc, carSportsSrc, carSedanSrc],
     features: ["Bluetooth", "Backup Camera", "Lane Watch", "Eco Mode", "USB-C"],
     description:
       "City-friendly, fuel-efficient, and surprisingly fun to drive. The Civic Sport is the everyday companion you can always rely on.",
@@ -208,8 +215,8 @@ export const cars: Car[] = [
     available: true,
     rating: 5.0,
     reviews: 64,
-    image: carSports,
-    gallery: [carSports, carSedan, carLuxurySuv],
+    image: carSportsSrc,
+    gallery: [carSportsSrc, carSedanSrc, carLuxurySuvSrc],
     features: ["Sport Chrono", "PDK Gearbox", "Sport Exhaust", "Bose Audio", "Launch Control"],
     description:
       "An icon, refined. The 911 Carrera delivers the unmistakable Porsche driving experience with surgical precision and timeless design.",
@@ -236,8 +243,8 @@ export const cars: Car[] = [
     available: true,
     rating: 4.7,
     reviews: 142,
-    image: carSuv,
-    gallery: [carSuv, carEv, carCompact],
+    image: carSuvSrc,
+    gallery: [carSuvSrc, carEvSrc, carCompactSrc],
     features: ["Hybrid", "Wireless CarPlay", "Heated Steering", "Highway Assist"],
     description:
       "Bold styling meets sensible value. The Tucson is a refined hybrid SUV ready for any adventure.",
@@ -264,8 +271,8 @@ export const cars: Car[] = [
     available: true,
     rating: 4.5,
     reviews: 201,
-    image: carSedan,
-    gallery: [carSedan, carCompact, carSports],
+    image: carSedanSrc,
+    gallery: [carSedanSrc, carCompactSrc, carSportsSrc],
     features: ["ProPILOT", "Apple CarPlay", "Bose Audio", "Heated Seats"],
     description:
       "A comfortable, confident sedan with a quiet ride and intuitive technology — perfect for business trips and weekend getaways.",

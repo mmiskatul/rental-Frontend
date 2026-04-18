@@ -1,4 +1,5 @@
-import { NavLink, Outlet, Link } from "react-router-dom";
+import Link from "next/link";
+import { NavLink } from "@/components/NavLink";
 import {
   LayoutDashboard,
   Car,
@@ -29,7 +30,7 @@ const adminNav = [
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
-export function AdminLayout() {
+export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -51,7 +52,7 @@ export function AdminLayout() {
           {adminNav.map((item) => (
             <NavLink
               key={item.to}
-              to={item.to}
+              href={item.to}
               end={item.end}
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
@@ -73,7 +74,7 @@ export function AdminLayout() {
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t border-sidebar-border p-3">
           <Button asChild variant="ghost" className="w-full justify-start gap-3 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground">
-            <Link to="/"><LogOut className="h-4 w-4" /> Sign out</Link>
+            <Link href="/"><LogOut className="h-4 w-4" /> Sign out</Link>
           </Button>
         </div>
       </aside>
@@ -102,7 +103,7 @@ export function AdminLayout() {
           </div>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>

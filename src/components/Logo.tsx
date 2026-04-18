@@ -1,10 +1,10 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Car } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Logo({ className, variant = "default" }: { className?: string; variant?: "default" | "light" }) {
   return (
-    <Link to="/" className={cn("flex items-center gap-2 font-display font-bold text-lg", className)}>
+    <Link href="/" className={cn("flex items-center gap-2 font-display font-bold text-lg", className)}>
       <span
         className={cn(
           "flex h-9 w-9 items-center justify-center rounded-xl",

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Logo } from "../Logo";
 import { Facebook, Instagram, Twitter, Linkedin } from "lucide-react";
 
@@ -30,20 +30,20 @@ export function PublicFooter() {
           <div>
             <h4 className="text-sm font-semibold">Platform</h4>
             <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-              <li><Link to="/cars" className="hover:text-foreground">Browse Fleet</Link></li>
-              <li><Link to="/about" className="hover:text-foreground">About</Link></li>
-              <li><Link to="/faq" className="hover:text-foreground">FAQ</Link></li>
-              <li><Link to="/contact" className="hover:text-foreground">Contact</Link></li>
+              <li><Link href="/cars" className="hover:text-foreground">Browse Fleet</Link></li>
+              <li><Link href="/about" className="hover:text-foreground">About</Link></li>
+              <li><Link href="/faq" className="hover:text-foreground">FAQ</Link></li>
+              <li><Link href="/contact" className="hover:text-foreground">Contact</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-sm font-semibold">Account</h4>
             <ul className="mt-4 space-y-2.5 text-sm text-muted-foreground">
-              <li><Link to="/login" className="hover:text-foreground">Sign in</Link></li>
-              <li><Link to="/register" className="hover:text-foreground">Create account</Link></li>
-              <li><Link to="/dashboard" className="hover:text-foreground">Dashboard</Link></li>
-              <li><Link to="/admin" className="hover:text-foreground">Admin Portal</Link></li>
+              <li><Link href="/login" className="hover:text-foreground">Sign in</Link></li>
+              <li><Link href="/register" className="hover:text-foreground">Create account</Link></li>
+              <li><Link href="/dashboard" className="hover:text-foreground">Dashboard</Link></li>
+              <li><Link href="/admin" className="hover:text-foreground">Admin Portal</Link></li>
             </ul>
           </div>
 

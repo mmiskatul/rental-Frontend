@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { Card } from "@/components/ui/card";
 import { ShieldCheck } from "lucide-react";
@@ -45,7 +45,7 @@ export function AuthLayout({
           </Card>
           {footer && <div className="mt-6 text-center text-sm text-muted-foreground">{footer}</div>}
           <p className="mt-8 text-center text-xs text-muted-foreground">
-            <Link to="/" className="hover:text-foreground">← Back to website</Link>
+            <Link href="/" className="hover:text-foreground">← Back to website</Link>
           </p>
         </div>
       </div>

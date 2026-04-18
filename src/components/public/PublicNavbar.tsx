@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ const links = [
 ];
 
 export function PublicNavbar() {
-  const { pathname } = useLocation();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   return (
@@ -26,7 +27,7 @@ export function PublicNavbar() {
           {links.map((l) => (
             <Link
               key={l.to}
-              to={l.to}
+              href={l.to}
               className={cn(
                 "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 pathname === l.to
@@ -41,10 +42,10 @@ export function PublicNavbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           <Button asChild variant="ghost" size="sm">
-            <Link to="/login">Sign in</Link>
+            <Link href="/login">Sign in</Link>
           </Button>
           <Button asChild size="sm" className="bg-primary hover:bg-primary-glow">
-            <Link to="/register">Get started</Link>
+            <Link href="/register">Get started</Link>
           </Button>
         </div>
 
@@ -59,7 +60,7 @@ export function PublicNavbar() {
             {links.map((l) => (
               <Link
                 key={l.to}
-                to={l.to}
+                href={l.to}
                 onClick={() => setOpen(false)}
                 className={cn(
                   "rounded-lg px-3 py-2 text-sm font-medium",
@@ -71,10 +72,10 @@ export function PublicNavbar() {
             ))}
             <div className="mt-2 flex gap-2 border-t border-border pt-3">
               <Button asChild variant="outline" size="sm" className="flex-1">
-                <Link to="/login">Sign in</Link>
+                <Link href="/login">Sign in</Link>
               </Button>
               <Button asChild size="sm" className="flex-1">
-                <Link to="/register">Get started</Link>
+                <Link href="/register">Get started</Link>
               </Button>
             </div>
           </div>

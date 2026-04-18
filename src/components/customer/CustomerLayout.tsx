@@ -1,4 +1,6 @@
-import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { NavLink } from "@/components/NavLink";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -26,9 +28,9 @@ const customerNav = [
   { to: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
-export function CustomerLayout() {
+export function CustomerLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
+  const pathname = usePathname();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -47,7 +49,7 @@ export function CustomerLayout() {
           {customerNav.map((item) => (
             <NavLink
               key={item.to}
-              to={item.to}
+              href={item.to}
               end={item.end}
               onClick={() => setOpen(false)}
               className={({ isActive }) =>
@@ -69,7 +71,7 @@ export function CustomerLayout() {
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t border-border p-3">
           <Button asChild variant="ghost" className="w-full justify-start gap-3 text-muted-foreground">
-            <Link to="/"><LogOut className="h-4 w-4" /> Sign out</Link>
+            <Link href="/"><LogOut className="h-4 w-4" /> Sign out</Link>
           </Button>
         </div>
       </aside>
@@ -86,19 +88,19 @@ export function CustomerLayout() {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Button asChild variant="ghost" size="icon" className="relative">
-              <Link to="/dashboard/notifications">
+              <Link href="/dashboard/notifications">
                 <Bell className="h-4 w-4" />
                 <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-accent" />
               </Link>
             </Button>
-            <Link to="/dashboard/profile" className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-secondary">
+            <Link href="/dashboard/profile" className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-secondary">
               <Avatar className="h-8 w-8"><AvatarFallback className="bg-primary text-primary-foreground text-xs">OM</AvatarFallback></Avatar>
               <span className="hidden text-sm font-medium sm:inline">Olivia M.</span>
             </Link>
           </div>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>

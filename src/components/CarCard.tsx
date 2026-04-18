@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom";
-import { Heart, Users, Fuel, Cog, MapPin } from "lucide-react";
+import Link from "next/link";
+import { Heart, Users, Fuel, Cog, MapPin, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Car } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/mock-data";
@@ -17,7 +17,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
     return (
       <article className="card-elevated group overflow-hidden p-3 sm:p-4">
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Link to={`/cars/${car.id}`} className="relative block aspect-[16/10] w-full overflow-hidden rounded-xl bg-secondary sm:w-72 sm:flex-none">
+          <Link href={`/cars/${car.id}`} className="relative block aspect-[16/10] w-full overflow-hidden rounded-xl bg-secondary sm:w-72 sm:flex-none">
             <img
               src={car.image}
               alt={`${car.name} for rent in ${car.location}`}
@@ -38,7 +38,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{car.type} · {car.brand}</p>
-                <Link to={`/cars/${car.id}`}>
+                <Link href={`/cars/${car.id}`}>
                   <h3 className="mt-1 text-lg font-semibold leading-tight hover:text-accent">{car.name}</h3>
                 </Link>
               </div>
@@ -63,8 +63,8 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
                 <p className="text-2xl font-bold">{formatCurrency(car.pricePerDay)}<span className="text-sm font-normal text-muted-foreground">/day</span></p>
               </div>
               <div className="flex gap-2">
-                <Button asChild variant="outline" size="sm"><Link to={`/cars/${car.id}`}>Details</Link></Button>
-                <Button asChild size="sm" disabled={!car.available}><Link to={`/cars/${car.id}`}>Book Now</Link></Button>
+                <Button asChild variant="outline" size="sm"><Link href={`/cars/${car.id}`}>Details</Link></Button>
+                <Button asChild size="sm" disabled={!car.available}><Link href={`/cars/${car.id}`}>Book Now</Link></Button>
               </div>
             </div>
           </div>
@@ -75,7 +75,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
 
   return (
     <article className="card-elevated group flex flex-col overflow-hidden">
-      <Link to={`/cars/${car.id}`} className="relative block aspect-[16/10] overflow-hidden bg-secondary">
+      <Link href={`/cars/${car.id}`} className="relative block aspect-[16/10] overflow-hidden bg-secondary">
         <img
           src={car.image}
           alt={`${car.name} for rent in ${car.location}`}
@@ -101,7 +101,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
 
       <div className="flex flex-1 flex-col p-5">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{car.type} · {car.brand}</p>
-        <Link to={`/cars/${car.id}`}>
+        <Link href={`/cars/${car.id}`}>
           <h3 className="mt-1 text-base font-semibold leading-tight hover:text-accent">{car.name}</h3>
         </Link>
 
@@ -117,7 +117,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
             <p className="text-xl font-bold">{formatCurrency(car.pricePerDay)}<span className="text-sm font-normal text-muted-foreground">/day</span></p>
           </div>
           <Button asChild size="sm" disabled={!car.available}>
-            <Link to={`/cars/${car.id}`}>Book Now</Link>
+            <Link href={`/cars/${car.id}`}>Book Now</Link>
           </Button>
         </div>
       </div>
@@ -125,7 +125,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
   );
 }
 
-function Spec({ icon: Icon, label }: { icon: any; label: string }) {
+function Spec({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
     <div className="flex items-center gap-1.5 text-xs">
       <Icon className="h-3.5 w-3.5 text-muted-foreground" />
