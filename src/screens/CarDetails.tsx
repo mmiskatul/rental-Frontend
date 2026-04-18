@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -12,24 +12,103 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CarCard } from "@/components/CarCard";
-import { cars, getCar, formatCurrency } from "@/lib/mock-data";
+import type { Car } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/mock-data";
+import { createBooking } from "@/lib/bookings-api";
+import { getCarById, listCars } from "@/lib/cars-api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+const today = new Date();
+const initialStartDate = toDateInputValue(today);
+const initialEndDate = toDateInputValue(addDays(today, 3));
 
 export default function CarDetails() {
   const params = useParams();
   const rawId = params?.id;
   const carId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const car = getCar(carId ?? "") ?? cars[0];
+  const [car, setCar] = useState<Car | null>(null);
+  const [cars, setCars] = useState<Car[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
-  const [days, setDays] = useState(3);
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [endDate, setEndDate] = useState(initialEndDate);
   const [fav, setFav] = useState(false);
 
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadCar() {
+      if (!carId) return;
+
+      try {
+        const [selectedCar, carList] = await Promise.all([getCarById(carId), listCars()]);
+        if (mounted) {
+          setCar(selectedCar);
+          setCars(carList);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not load car.");
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    loadCar();
+
+    return () => {
+      mounted = false;
+    };
+  }, [carId]);
+
+  if (isLoading) {
+    return (
+      <div className="container-px mx-auto max-w-7xl py-8">
+        <div className="h-[520px] rounded-lg bg-secondary/70" />
+      </div>
+    );
+  }
+
+  if (!car) {
+    return (
+      <div className="container-px mx-auto max-w-7xl py-8">
+        <Link href="/cars" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="h-4 w-4" /> Back to fleet
+        </Link>
+        <div className="mt-8 rounded-lg border border-border p-8 text-center text-muted-foreground">Car not found.</div>
+      </div>
+    );
+  }
+
+  const days = calculateDays(startDate, endDate);
   const subtotal = car.pricePerDay * days;
   const fees = Math.round(subtotal * 0.08);
   const total = subtotal + fees;
 
   const similar = cars.filter((c) => c.id !== car.id && c.type === car.type).slice(0, 3);
+
+  async function handleBookingRequest() {
+    if (!car || days < 1) {
+      toast.error("Choose a valid pick-up and drop-off date.");
+      return;
+    }
+
+    setIsSubmittingBooking(true);
+    try {
+      await createBooking({
+        carId: car.id,
+        startDate,
+        endDate,
+        pickupLocation: car.pickupPoint,
+      });
+      toast.success("Booking request sent! Awaiting admin approval.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send booking request.");
+    } finally {
+      setIsSubmittingBooking(false);
+    }
+  }
 
   return (
     <div className="container-px mx-auto max-w-7xl py-8">
@@ -151,14 +230,14 @@ export default function CarDetails() {
                   <Label className="text-xs">Pick-up</Label>
                   <div className="relative">
                     <CalIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input type="date" className="pl-9" />
+                    <Input type="date" className="pl-9" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
                   </div>
                 </div>
                 <div>
                   <Label className="text-xs">Drop-off</Label>
                   <div className="relative">
                     <CalIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input type="date" className="pl-9" />
+                    <Input type="date" className="pl-9" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
                   </div>
                 </div>
               </div>
@@ -173,7 +252,7 @@ export default function CarDetails() {
               </div>
               <div>
                 <Label className="text-xs">Rental period</Label>
-                <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+                <Select value={String(days)} onValueChange={(value) => setEndDate(toDateInputValue(addDays(new Date(`${startDate}T00:00:00`), Number(value))))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {[1, 2, 3, 5, 7, 14].map((d) => <SelectItem key={d} value={String(d)}>{d} days</SelectItem>)}
@@ -192,8 +271,8 @@ export default function CarDetails() {
               </div>
             </div>
 
-            <Button className="mt-5 w-full bg-accent text-accent-foreground hover:bg-accent/90" size="lg" disabled={!car.available} onClick={() => toast.success("Booking request sent! Awaiting approval.")}>
-              Request Booking
+            <Button className="mt-5 w-full bg-accent text-accent-foreground hover:bg-accent/90" size="lg" disabled={!car.available || isSubmittingBooking || days < 1} onClick={handleBookingRequest}>
+              {isSubmittingBooking ? "Sending request..." : "Request Booking"}
             </Button>
 
             <div className="mt-4 flex items-start gap-2 rounded-lg bg-secondary/60 p-3 text-xs text-muted-foreground">
@@ -229,4 +308,21 @@ function Row({ label, value, muted }: { label: string; value: string; muted?: bo
       <span>{label}</span><span>{value}</span>
     </div>
   );
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function toDateInputValue(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function calculateDays(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const diff = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+  return Number.isFinite(diff) ? Math.max(0, diff) : 0;
 }

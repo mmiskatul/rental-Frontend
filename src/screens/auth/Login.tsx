@@ -1,39 +1,85 @@
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { AuthLayout } from "@/components/auth/AuthLayout";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest } from "@/lib/api";
 import { toast } from "sonner";
+
+type AuthResponse = {
+  user: {
+    role: "customer" | "admin" | "landlord";
+  };
+};
 
 export default function Login() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { refreshUser } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function signIn(credentials = { email, password }) {
+    setIsSubmitting(true);
+
+    try {
+      const data = await apiRequest<AuthResponse>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify(credentials),
+      });
+      await refreshUser();
+      toast.success("Signed in");
+      router.push(searchParams.get("next") ?? (data.user.role === "admin" ? "/admin" : "/dashboard"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sign in failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await signIn();
+  }
+
+  async function handleAdminLogin() {
+    setEmail("admin@rentalsphere.com");
+    setPassword("Admin12345");
+    await signIn({ email: "admin@rentalsphere.com", password: "Admin12345" });
+  }
+
   return (
     <AuthLayout
       title="Welcome back"
       subtitle="Sign in to your DriveFlow account."
-      footer={<>Don't have an account? <Link href="/register" className="font-medium text-foreground hover:text-accent">Create one</Link></>}
+      footer={<>Don&apos;t have an account? <Link href="/register" className="font-medium text-foreground hover:text-accent">Create one</Link></>}
     >
-      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); toast.success("Signed in"); router.push("/dashboard"); }}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
           <Label>Email</Label>
-          <Input type="email" placeholder="you@example.com" defaultValue="olivia.m@example.com" />
+          <Input type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
         </div>
         <div>
           <div className="flex items-center justify-between">
             <Label>Password</Label>
             <Link href="/forgot-password" className="text-xs font-medium text-muted-foreground hover:text-foreground">Forgot?</Link>
           </div>
-          <Input type="password" placeholder="••••••••" defaultValue="password" />
+          <Input type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} required />
         </div>
         <div className="flex items-center gap-2">
           <Checkbox id="remember" defaultChecked />
           <Label htmlFor="remember" className="cursor-pointer text-sm font-normal">Remember me for 30 days</Label>
         </div>
-        <Button type="submit" className="w-full bg-primary hover:bg-primary-glow" size="lg">Sign in</Button>
-        <Button type="button" variant="outline" className="w-full" size="lg" onClick={() => { toast.success("Admin signed in"); router.push("/admin"); }}>
-          Continue as Admin (demo)
+        <Button type="submit" className="w-full bg-primary hover:bg-primary-glow" size="lg" disabled={isSubmitting}>
+          {isSubmitting ? "Signing in..." : "Sign in"}
+        </Button>
+        <Button type="button" variant="outline" className="w-full" size="lg" onClick={handleAdminLogin} disabled={isSubmitting}>
+          Continue as Admin
         </Button>
       </form>
     </AuthLayout>

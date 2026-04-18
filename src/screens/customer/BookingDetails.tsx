@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChevronLeft, MapPin, Calendar, Phone, MessageCircle, AlertCircle, CheckCircle2, type LucideIcon } from "lucide-react";
@@ -5,25 +6,59 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/StatusBadge";
-import { bookings, getCar, formatCurrency } from "@/lib/mock-data";
+import { formatCurrency, type Booking } from "@/lib/mock-data";
+import { getBooking } from "@/lib/bookings-api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const timeline = [
-  { label: "Request submitted", done: true },
-  { label: "Admin reviewing", done: true },
-  { label: "Approved", done: true },
-  { label: "Vehicle pickup", done: false },
-  { label: "Rental active", done: false },
-  { label: "Returned", done: false },
-];
+type CustomerBooking = Booking & { carName?: string; carImage?: string | null };
 
 export default function BookingDetails() {
   const params = useParams();
   const rawId = params?.id;
   const bookingId = Array.isArray(rawId) ? rawId[0] : rawId;
-  const booking = bookings.find((b) => b.id === bookingId) ?? bookings[0];
-  const car = getCar(booking.carId);
+  const [booking, setBooking] = useState<CustomerBooking | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadBooking() {
+      if (!bookingId) return;
+      setIsLoading(true);
+      try {
+        const loaded = await getBooking(bookingId);
+        if (mounted) setBooking(loaded);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not load booking.");
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    loadBooking();
+
+    return () => {
+      mounted = false;
+    };
+  }, [bookingId]);
+
+  if (isLoading) {
+    return <div className="h-[420px] rounded-lg bg-secondary/70" />;
+  }
+
+  if (!booking) {
+    return (
+      <div className="space-y-6">
+        <Link href="/dashboard/bookings" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="h-4 w-4" /> Back to bookings
+        </Link>
+        <Card className="p-8 text-center text-muted-foreground">Booking not found.</Card>
+      </div>
+    );
+  }
+
+  const timeline = buildTimeline(booking.status);
 
   return (
     <div className="space-y-6">
@@ -34,7 +69,7 @@ export default function BookingDetails() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Booking {booking.id}</p>
-          <h1 className="mt-1 font-display text-2xl font-bold">{car?.name}</h1>
+          <h1 className="mt-1 font-display text-2xl font-bold">{booking.carName}</h1>
         </div>
         <StatusBadge status={booking.status} />
       </div>
@@ -42,15 +77,10 @@ export default function BookingDetails() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <Card className="overflow-hidden">
-            <img src={car?.image} alt="" className="aspect-[16/7] w-full object-cover" />
+            {booking.carImage ? <img src={booking.carImage} alt="" className="aspect-[16/7] w-full object-cover" /> : <div className="aspect-[16/7] w-full bg-secondary" />}
             <div className="p-6">
               <h2 className="text-lg font-semibold">Vehicle</h2>
-              <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4 text-sm">
-                <div><p className="text-xs text-muted-foreground">Type</p><p className="font-semibold">{car?.type}</p></div>
-                <div><p className="text-xs text-muted-foreground">Brand</p><p className="font-semibold">{car?.brand}</p></div>
-                <div><p className="text-xs text-muted-foreground">Transmission</p><p className="font-semibold">{car?.transmission}</p></div>
-                <div><p className="text-xs text-muted-foreground">Fuel</p><p className="font-semibold">{car?.fuel}</p></div>
-              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{booking.carName}</p>
             </div>
           </Card>
 
@@ -68,7 +98,7 @@ export default function BookingDetails() {
             <h2 className="text-lg font-semibold">Booking timeline</h2>
             <div className="mt-5 space-y-4">
               {timeline.map((t, i) => (
-                <div key={i} className="flex gap-3">
+                <div key={t.label} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <div className={cn("flex h-7 w-7 items-center justify-center rounded-full", t.done ? "bg-success text-success-foreground" : "bg-secondary text-muted-foreground")}>
                       {t.done ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs">{i + 1}</span>}
@@ -95,17 +125,15 @@ export default function BookingDetails() {
           <Card className="p-6">
             <h2 className="text-lg font-semibold">Payment summary</h2>
             <div className="mt-4 space-y-2 text-sm">
-              <Row label={`${formatCurrency(car?.pricePerDay ?? 0)} × ${booking.days} days`} value={formatCurrency((car?.pricePerDay ?? 0) * booking.days)} />
-              <Row label="Service fee" value={formatCurrency(Math.round(booking.total * 0.08))} />
-              <Row label="Security deposit" value={formatCurrency(car?.deposit ?? 0)} muted />
+              <Row label="Booking total" value={formatCurrency(booking.total)} />
+              <Row label="Payment status" value={booking.paymentStatus} muted />
               <Separator className="my-2" />
               <div className="flex items-center justify-between text-base font-semibold">
                 <span>Total</span><span>{formatCurrency(booking.total)}</span>
               </div>
-              <p className="pt-1 text-xs text-muted-foreground">Payment status: <span className="font-medium capitalize text-foreground">{booking.paymentStatus}</span></p>
             </div>
             {booking.status === "pending" && (
-              <Button variant="outline" className="mt-5 w-full text-destructive hover:text-destructive" onClick={() => toast.success("Booking cancelled")}>
+              <Button variant="outline" className="mt-5 w-full text-destructive hover:text-destructive" onClick={() => toast.success("Booking cancellation requested")}>
                 Cancel booking
               </Button>
             )}
@@ -122,12 +150,26 @@ export default function BookingDetails() {
 
           <div className="flex items-start gap-2 rounded-xl border border-border bg-warning-soft p-3 text-xs text-foreground">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-none text-warning" />
-            <span>Bring your driver's license and a valid credit card to pickup. Pickup time: 9am – 7pm.</span>
+            <span>Bring your driver's license and a valid credit card to pickup. Pickup time: 9am - 7pm.</span>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function buildTimeline(status: Booking["status"]) {
+  const approved = ["approved", "active", "completed"].includes(status);
+  const active = ["active", "completed"].includes(status);
+  const completed = status === "completed";
+  return [
+    { label: "Request submitted", done: true },
+    { label: "Admin reviewing", done: status !== "pending" },
+    { label: status === "rejected" ? "Rejected" : "Approved", done: approved || status === "rejected" },
+    { label: "Vehicle pickup", done: active },
+    { label: "Rental active", done: active },
+    { label: "Returned", done: completed },
+  ];
 }
 
 function Detail({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
@@ -141,6 +183,7 @@ function Detail({ icon: Icon, label, value }: { icon: LucideIcon; label: string;
     </div>
   );
 }
+
 function Row({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return <div className={`flex justify-between ${muted ? "text-muted-foreground" : ""}`}><span>{label}</span><span>{value}</span></div>;
 }

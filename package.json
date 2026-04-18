@@ -9,6 +9,8 @@
     "build:dev": "set NEXT_TEST_WASM_DIR=%cd%\\node_modules\\@next\\swc-wasm-nodejs&& next build --webpack",
     "lint": "eslint .",
     "start": "next start",
+    "backend:dev": "python -m uvicorn app.main:app --reload --app-dir backend",
+    "backend:start": "python -m uvicorn app.main:app --app-dir backend",
     "test": "vitest run",
     "test:watch": "vitest"
   },

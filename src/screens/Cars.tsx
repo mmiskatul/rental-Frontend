@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, SlidersHorizontal, LayoutGrid, List, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CarCard } from "@/components/CarCard";
 import { EmptyState } from "@/components/EmptyState";
-import { cars, brands, carTypes, fuelTypes, transmissions, locations } from "@/lib/mock-data";
+import type { Car } from "@/lib/mock-data";
+import { brands, carTypes, fuelTypes, transmissions, locations } from "@/lib/mock-data";
+import { listCars } from "@/lib/cars-api";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function Cars() {
+  const [cars, setCars] = useState<Car[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -27,6 +32,27 @@ export default function Cars() {
 
   const toggle = (list: string[], v: string, set: (l: string[]) => void) =>
     set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadCars() {
+      try {
+        const data = await listCars();
+        if (mounted) setCars(data);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not load cars.");
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    loadCars();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     let r = cars.filter((c) => {
@@ -44,7 +70,7 @@ export default function Cars() {
     if (sort === "price-desc") r = [...r].sort((a, b) => b.pricePerDay - a.pricePerDay);
     if (sort === "rating") r = [...r].sort((a, b) => b.rating - a.rating);
     return r;
-  }, [search, price, selectedBrands, selectedTypes, selectedFuels, selectedTrans, location, availableOnly, sort]);
+  }, [cars, search, price, selectedBrands, selectedTypes, selectedFuels, selectedTrans, location, availableOnly, sort]);
 
   const reset = () => {
     setSearch(""); setPrice([550]); setSelectedBrands([]); setSelectedTypes([]);
@@ -57,7 +83,7 @@ export default function Cars() {
       <div className="mb-8">
         <p className="text-sm font-medium uppercase tracking-wider text-accent">Our Fleet</p>
         <h1 className="mt-2 font-display text-3xl font-bold sm:text-4xl">Browse available vehicles</h1>
-        <p className="mt-2 text-muted-foreground">{filtered.length} cars ready to book</p>
+        <p className="mt-2 text-muted-foreground">{isLoading ? "Loading cars..." : `${filtered.length} cars ready to book`}</p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
@@ -158,7 +184,11 @@ export default function Cars() {
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+              {[1, 2, 3].map((item) => <div key={item} className="h-80 rounded-lg bg-secondary/70" />)}
+            </div>
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={Search}
               title="No cars match your filters"

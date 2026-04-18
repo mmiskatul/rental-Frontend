@@ -1,17 +1,47 @@
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { Car, CalendarRange, Clock, Users, DollarSign, TrendingUp, ArrowRight } from "lucide-react";
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { bookings, getCar, formatCurrency, revenueData, fleetUtilization } from "@/lib/mock-data";
+import { formatCurrency, revenueData, fleetUtilization, type Booking, type BookingStatus } from "@/lib/mock-data";
+import { listBookings, updateBookingStatus } from "@/lib/bookings-api";
+import { toast } from "sonner";
 
 const COLORS = ["hsl(var(--accent))", "hsl(var(--success))", "hsl(var(--muted))"];
+type AdminBooking = Booking & { carName?: string; carImage?: string | null };
 
 export default function AdminDashboard() {
+  const [bookings, setBookings] = useState<AdminBooking[]>([]);
+
+  useEffect(() => {
+    loadBookings();
+  }, []);
+
+  async function loadBookings() {
+    try {
+      setBookings(await listBookings());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load bookings.");
+    }
+  }
+
+  async function handleStatus(id: string, status: BookingStatus) {
+    try {
+      const updated = await updateBookingStatus(id, status);
+      setBookings((current) => current.map((booking) => (booking.id === id ? updated : booking)));
+      toast.success(status === "approved" ? "Booking approved" : "Booking rejected");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update booking.");
+    }
+  }
+
   const pending = bookings.filter((b) => b.status === "pending");
   const recent = bookings.slice(0, 5);
+  const active = bookings.filter((b) => b.status === "approved" || b.status === "active").length;
+
   return (
     <div className="space-y-8">
       <div>
@@ -21,14 +51,14 @@ export default function AdminDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Total cars" value="48" icon={Car} trend={{ value: "3 added this week", positive: true }} />
-        <KpiCard label="Active bookings" value="12" icon={CalendarRange} iconClassName="bg-success-soft text-success" />
+        <KpiCard label="Active bookings" value={String(active)} icon={CalendarRange} iconClassName="bg-success-soft text-success" />
         <KpiCard label="Pending requests" value={String(pending.length)} icon={Clock} iconClassName="bg-warning-soft text-warning" />
         <KpiCard label="Monthly revenue" value={formatCurrency(47800)} icon={DollarSign} trend={{ value: "13.5% vs last month", positive: true }} iconClassName="bg-info-soft text-info" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Available cars" value="28" icon={Car} iconClassName="bg-success-soft text-success" />
-        <KpiCard label="Booked cars" value="20" icon={Car} iconClassName="bg-info-soft text-info" />
+        <KpiCard label="Booked cars" value={String(active)} icon={Car} iconClassName="bg-info-soft text-info" />
         <KpiCard label="Total customers" value="1,248" icon={Users} />
         <KpiCard label="Fleet utilization" value="62%" icon={TrendingUp} iconClassName="bg-accent-soft text-accent" />
       </div>
@@ -91,20 +121,18 @@ export default function AdminDashboard() {
             <Button asChild variant="ghost" size="sm"><Link href="/admin/bookings">View all <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link></Button>
           </div>
           <div className="mt-4 space-y-2">
-            {recent.map((b) => {
-              const car = getCar(b.carId);
-              return (
-                <Link key={b.id} href={`/admin/bookings/${b.id}`} className="flex items-center gap-4 rounded-xl border border-border p-3 hover:bg-secondary/50">
-                  <img src={car?.image} alt="" className="h-12 w-16 rounded-lg object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{car?.name}</p>
-                    <p className="text-xs text-muted-foreground">{b.customerName} · {b.id}</p>
-                  </div>
-                  <StatusBadge status={b.status} />
-                  <p className="hidden text-sm font-semibold sm:block">{formatCurrency(b.total)}</p>
-                </Link>
-              );
-            })}
+            {recent.map((b) => (
+              <Link key={b.id} href={`/admin/bookings/${b.id}`} className="flex items-center gap-4 rounded-xl border border-border p-3 hover:bg-secondary/50">
+                {b.carImage ? <img src={b.carImage} alt="" className="h-12 w-16 rounded-lg object-cover" /> : <div className="h-12 w-16 rounded-lg bg-secondary" />}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{b.carName}</p>
+                  <p className="text-xs text-muted-foreground">{b.customerName} - {b.id}</p>
+                </div>
+                <StatusBadge status={b.status} />
+                <p className="hidden text-sm font-semibold sm:block">{formatCurrency(b.total)}</p>
+              </Link>
+            ))}
+            {recent.length === 0 && <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No booking requests yet.</p>}
           </div>
         </Card>
 
@@ -115,13 +143,14 @@ export default function AdminDashboard() {
             {pending.map((b) => (
               <div key={b.id} className="rounded-xl border border-border p-3">
                 <p className="text-sm font-semibold">{b.customerName}</p>
-                <p className="text-xs text-muted-foreground">{getCar(b.carId)?.name} · {b.days} days</p>
+                <p className="text-xs text-muted-foreground">{b.carName} - {b.days} days</p>
                 <div className="mt-2 flex gap-2">
-                  <Button size="sm" className="flex-1 h-8 bg-success hover:bg-success/90 text-success-foreground">Approve</Button>
-                  <Button size="sm" variant="outline" className="flex-1 h-8">Reject</Button>
+                  <Button size="sm" className="flex-1 h-8 bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleStatus(b.id, "approved")}>Approve</Button>
+                  <Button size="sm" variant="outline" className="flex-1 h-8" onClick={() => handleStatus(b.id, "rejected")}>Reject</Button>
                 </div>
               </div>
             ))}
+            {pending.length === 0 && <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">No pending requests.</p>}
           </div>
         </Card>
       </div>
