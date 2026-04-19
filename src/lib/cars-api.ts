@@ -20,6 +20,21 @@ export type ApiCar = {
   updated_at: string;
 };
 
+export type ApiTrendingCar = ApiCar & {
+  booking_count: number;
+  completed_count: number;
+};
+
+export type TrendingCar = Car & {
+  bookingCount: number;
+  completedCount: number;
+};
+
+export type CarCategory = {
+  type: CarType;
+  count: number;
+};
+
 export type CreateCarPayload = {
   title: string;
   brand: string;
@@ -40,6 +55,20 @@ export type UpdateCarPayload = Omit<CreateCarPayload, "image"> & {
 
 export async function listCars() {
   const cars = await apiRequest<ApiCar[]>("/api/cars");
+  return cars.map(mapApiCarToCar);
+}
+
+export async function listTrendingCars(limit = 3) {
+  const cars = await apiRequest<ApiTrendingCar[]>(`/api/cars/trending?limit=${limit}`);
+  return cars.map(mapApiTrendingCarToCar);
+}
+
+export async function listCarCategories() {
+  return apiRequest<CarCategory[]>("/api/cars/categories");
+}
+
+export async function listRecommendedCars(limit = 3) {
+  const cars = await apiRequest<ApiCar[]>(`/api/cars/recommended?limit=${limit}`);
   return cars.map(mapApiCarToCar);
 }
 
@@ -121,6 +150,14 @@ export function mapApiCarToCar(car: ApiCar): Car {
     gallery: [image],
     features: [transmission, fuel, `${car.seats ?? 5} seats`],
     description: car.description || `${car.title} is available to rent in ${car.location}.`,
+  };
+}
+
+function mapApiTrendingCarToCar(car: ApiTrendingCar): TrendingCar {
+  return {
+    ...mapApiCarToCar(car),
+    bookingCount: car.booking_count,
+    completedCount: car.completed_count,
   };
 }
 

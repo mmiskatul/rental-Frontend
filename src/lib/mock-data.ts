@@ -15,8 +15,10 @@ const carLuxurySuvSrc = carLuxurySuv.src;
 export type BookingStatus =
   | "pending"
   | "approved"
+  | "pickup_requested"
   | "rejected"
   | "active"
+  | "return_requested"
   | "completed"
   | "cancelled";
 
@@ -455,8 +457,10 @@ export const customers: Customer[] = [
 export const statusLabels: Record<BookingStatus, string> = {
   pending: "Pending",
   approved: "Approved",
+  pickup_requested: "Pickup Requested",
   rejected: "Rejected",
   active: "Active",
+  return_requested: "Return Requested",
   completed: "Completed",
   cancelled: "Cancelled",
 };

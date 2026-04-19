@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft, Check, X, Phone, Mail, MessageSquare } from "lucide-react";
+import { ChevronLeft, Check, X, Phone, Mail, MessageSquare, KeyRound, RotateCcw, Star } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,7 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatCurrency, type Booking, type BookingStatus } from "@/lib/mock-data";
-import { getBooking, updateBookingStatus } from "@/lib/bookings-api";
+import { confirmReturn, getBooking, requestPickup, updateBookingStatus } from "@/lib/bookings-api";
+import { listReviews, type Review } from "@/lib/reviews-api";
 import { toast } from "sonner";
 
 type AdminBooking = Booking & { carName?: string; carImage?: string | null };
@@ -19,6 +20,7 @@ export default function AdminBookingDetails() {
   const rawId = params?.id;
   const bookingId = Array.isArray(rawId) ? rawId[0] : rawId;
   const [booking, setBooking] = useState<AdminBooking | null>(null);
+  const [review, setReview] = useState<Review | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +31,11 @@ export default function AdminBookingDetails() {
       setIsLoading(true);
       try {
         const loaded = await getBooking(bookingId);
-        if (mounted) setBooking(loaded);
+        const reviews = await listReviews({ bookingId });
+        if (mounted) {
+          setBooking(loaded);
+          setReview(reviews[0] ?? null);
+        }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Could not load booking.");
       } finally {
@@ -50,6 +56,17 @@ export default function AdminBookingDetails() {
       const updated = await updateBookingStatus(booking.id, status);
       setBooking(updated);
       toast.success(status === "approved" ? "Booking approved" : "Booking rejected");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update booking.");
+    }
+  }
+
+  async function handleLifecycle(action: "pickup" | "return") {
+    if (!booking) return;
+    try {
+      const updated = action === "pickup" ? await requestPickup(booking.id) : await confirmReturn(booking.id);
+      setBooking(updated);
+      toast.success(action === "pickup" ? "Pickup confirmation request sent" : "Return confirmed");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update booking.");
     }
@@ -117,6 +134,19 @@ export default function AdminBookingDetails() {
             <Textarea rows={4} className="mt-3" placeholder="Add a private note for the team..." defaultValue={booking.notes ?? ""} />
             <Button size="sm" className="mt-3" onClick={() => toast.success("Note saved")}>Save note</Button>
           </Card>
+
+          {review && (
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold">Customer review</h2>
+              <div className="mt-4 rounded-xl border border-border p-4">
+                <div className="flex gap-1 text-accent">
+                  {Array.from({ length: review.rating }).map((_, index) => <Star key={index} className="h-4 w-4 fill-current" />)}
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">{review.comment}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Submitted {review.createdAt}</p>
+              </div>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -156,6 +186,22 @@ export default function AdminBookingDetails() {
                 <Button className="w-full bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleStatus("approved")}><Check className="mr-2 h-4 w-4" /> Approve</Button>
                 <Button variant="outline" className="w-full text-destructive hover:text-destructive" onClick={() => handleStatus("rejected")}><X className="mr-2 h-4 w-4" /> Reject</Button>
               </div>
+            </Card>
+          )}
+
+          {booking.status === "approved" && (
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold">Pickup</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Ask the customer to confirm they have picked up the vehicle.</p>
+              <Button className="mt-4 w-full" onClick={() => handleLifecycle("pickup")}><KeyRound className="mr-2 h-4 w-4" /> Request Pickup Confirmation</Button>
+            </Card>
+          )}
+
+          {booking.status === "return_requested" && (
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold">Return</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Customer requested return completion. Confirm once the vehicle is checked in.</p>
+              <Button className="mt-4 w-full bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleLifecycle("return")}><RotateCcw className="mr-2 h-4 w-4" /> Confirm Return</Button>
             </Card>
           )}
         </div>

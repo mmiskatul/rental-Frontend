@@ -62,6 +62,27 @@ export async function updateBookingStatus(id: string, status: BookingStatus) {
   return mapApiBookingToBooking(booking);
 }
 
+export async function requestPickup(id: string) {
+  return postBookingAction(id, "request-pickup");
+}
+
+export async function confirmPickup(id: string) {
+  return postBookingAction(id, "confirm-pickup");
+}
+
+export async function requestReturn(id: string) {
+  return postBookingAction(id, "request-return");
+}
+
+export async function confirmReturn(id: string) {
+  return postBookingAction(id, "confirm-return");
+}
+
+async function postBookingAction(id: string, action: string) {
+  const booking = await apiRequest<ApiBooking>(`/api/bookings/${id}/${action}`, { method: "POST" });
+  return mapApiBookingToBooking(booking);
+}
+
 export function mapApiBookingToBooking(booking: ApiBooking): Booking & { carName: string; carImage?: string | null } {
   return {
     id: booking.id,

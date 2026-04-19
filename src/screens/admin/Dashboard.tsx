@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { Car, CalendarRange, Clock, Users, DollarSign, TrendingUp, ArrowRight } from "lucide-react";
+import { Car, CalendarRange, Clock, Users, DollarSign, TrendingUp, ArrowRight, KeyRound, RotateCcw } from "lucide-react";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, revenueData, fleetUtilization, type Booking, type BookingStatus } from "@/lib/mock-data";
-import { listBookings, updateBookingStatus } from "@/lib/bookings-api";
+import { formatCurrency, type Booking, type BookingStatus } from "@/lib/mock-data";
+import { confirmReturn, listBookings, requestPickup, updateBookingStatus } from "@/lib/bookings-api";
+import { getAdminOverview, type AdminOverview } from "@/lib/overview-api";
 import { toast } from "sonner";
 
 const COLORS = ["hsl(var(--accent))", "hsl(var(--success))", "hsl(var(--muted))"];
@@ -15,16 +16,27 @@ type AdminBooking = Booking & { carName?: string; carImage?: string | null };
 
 export default function AdminDashboard() {
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
 
   useEffect(() => {
-    loadBookings();
+    loadDashboard();
   }, []);
 
-  async function loadBookings() {
+  async function loadDashboard() {
     try {
-      setBookings(await listBookings());
+      const [bookingList, overviewData] = await Promise.all([listBookings(), getAdminOverview()]);
+      setBookings(bookingList);
+      setOverview(overviewData);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not load bookings.");
+      toast.error(error instanceof Error ? error.message : "Could not load admin overview.");
+    }
+  }
+
+  async function refreshOverview() {
+    try {
+      setOverview(await getAdminOverview());
+    } catch {
+      // Booking actions already succeeded; avoid stacking secondary errors.
     }
   }
 
@@ -32,15 +44,30 @@ export default function AdminDashboard() {
     try {
       const updated = await updateBookingStatus(id, status);
       setBookings((current) => current.map((booking) => (booking.id === id ? updated : booking)));
+      await refreshOverview();
       toast.success(status === "approved" ? "Booking approved" : "Booking rejected");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update booking.");
     }
   }
 
+  async function handleLifecycle(id: string, action: "pickup" | "return") {
+    try {
+      const updated = action === "pickup" ? await requestPickup(id) : await confirmReturn(id);
+      setBookings((current) => current.map((booking) => (booking.id === id ? updated : booking)));
+      await refreshOverview();
+      toast.success(action === "pickup" ? "Pickup confirmation request sent" : "Return confirmed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update booking.");
+    }
+  }
+
   const pending = bookings.filter((b) => b.status === "pending");
+  const pickupReady = bookings.filter((b) => b.status === "approved");
+  const returnReady = bookings.filter((b) => b.status === "return_requested");
   const recent = bookings.slice(0, 5);
-  const active = bookings.filter((b) => b.status === "approved" || b.status === "active").length;
+  const revenueTrend = overview?.revenueTrend ?? [];
+  const fleetDistribution = overview?.fleetDistribution ?? [];
 
   return (
     <div className="space-y-8">
@@ -50,17 +77,17 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Total cars" value="48" icon={Car} trend={{ value: "3 added this week", positive: true }} />
-        <KpiCard label="Active bookings" value={String(active)} icon={CalendarRange} iconClassName="bg-success-soft text-success" />
-        <KpiCard label="Pending requests" value={String(pending.length)} icon={Clock} iconClassName="bg-warning-soft text-warning" />
-        <KpiCard label="Monthly revenue" value={formatCurrency(47800)} icon={DollarSign} trend={{ value: "13.5% vs last month", positive: true }} iconClassName="bg-info-soft text-info" />
+        <KpiCard label="Total cars" value={overview?.totalCars ?? 0} icon={Car} />
+        <KpiCard label="Active bookings" value={overview?.activeBookings ?? 0} icon={CalendarRange} iconClassName="bg-success-soft text-success" />
+        <KpiCard label="Pending requests" value={overview?.pendingRequests ?? 0} icon={Clock} iconClassName="bg-warning-soft text-warning" />
+        <KpiCard label="Monthly revenue" value={formatCurrency(overview?.monthlyRevenue ?? 0)} icon={DollarSign} iconClassName="bg-info-soft text-info" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Available cars" value="28" icon={Car} iconClassName="bg-success-soft text-success" />
-        <KpiCard label="Booked cars" value={String(active)} icon={Car} iconClassName="bg-info-soft text-info" />
-        <KpiCard label="Total customers" value="1,248" icon={Users} />
-        <KpiCard label="Fleet utilization" value="62%" icon={TrendingUp} iconClassName="bg-accent-soft text-accent" />
+        <KpiCard label="Available cars" value={overview?.availableCars ?? 0} icon={Car} iconClassName="bg-success-soft text-success" />
+        <KpiCard label="Booked cars" value={overview?.bookedCars ?? 0} icon={Car} iconClassName="bg-info-soft text-info" />
+        <KpiCard label="Total customers" value={overview?.totalCustomers ?? 0} icon={Users} />
+        <KpiCard label="Fleet utilization" value={`${overview?.fleetUtilization ?? 0}%`} icon={TrendingUp} iconClassName="bg-accent-soft text-accent" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -74,7 +101,7 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-4 h-72">
             <ResponsiveContainer>
-              <AreaChart data={revenueData}>
+              <AreaChart data={revenueTrend}>
                 <defs>
                   <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="hsl(var(--accent))" stopOpacity={0.4} />
@@ -96,18 +123,18 @@ export default function AdminDashboard() {
           <div className="mt-4 h-56">
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={fleetUtilization} dataKey="value" nameKey="name" innerRadius={50} outerRadius={75} paddingAngle={3}>
-                  {fleetUtilization.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+                <Pie data={fleetDistribution} dataKey="value" nameKey="name" innerRadius={50} outerRadius={75} paddingAngle={3}>
+                  {fleetDistribution.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
                 <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
           <div className="mt-2 space-y-1.5 text-sm">
-            {fleetUtilization.map((f, i) => (
+            {fleetDistribution.map((f, i) => (
               <div key={f.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: COLORS[i] }} />{f.name}</div>
-                <span className="font-semibold">{f.value}%</span>
+                <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: COLORS[i % COLORS.length] }} />{f.name}</div>
+                <span className="font-semibold">{f.value}</span>
               </div>
             ))}
           </div>
@@ -138,7 +165,7 @@ export default function AdminDashboard() {
 
         <Card className="p-6">
           <h2 className="text-lg font-semibold">Pending approvals</h2>
-          <p className="text-xs text-muted-foreground">{pending.length} requests awaiting review</p>
+          <p className="text-xs text-muted-foreground">{pending.length + pickupReady.length + returnReady.length} operational requests</p>
           <div className="mt-4 space-y-3">
             {pending.map((b) => (
               <div key={b.id} className="rounded-xl border border-border p-3">
@@ -150,7 +177,21 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
-            {pending.length === 0 && <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">No pending requests.</p>}
+            {pickupReady.map((b) => (
+              <div key={b.id} className="rounded-xl border border-border p-3">
+                <p className="text-sm font-semibold">{b.customerName}</p>
+                <p className="text-xs text-muted-foreground">{b.carName} - approved for pickup</p>
+                <Button size="sm" variant="outline" className="mt-2 h-8 w-full" onClick={() => handleLifecycle(b.id, "pickup")}><KeyRound className="mr-2 h-3.5 w-3.5" /> Request Pickup</Button>
+              </div>
+            ))}
+            {returnReady.map((b) => (
+              <div key={b.id} className="rounded-xl border border-border p-3">
+                <p className="text-sm font-semibold">{b.customerName}</p>
+                <p className="text-xs text-muted-foreground">{b.carName} - return requested</p>
+                <Button size="sm" className="mt-2 h-8 w-full bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleLifecycle(b.id, "return")}><RotateCcw className="mr-2 h-3.5 w-3.5" /> Confirm Return</Button>
+              </div>
+            ))}
+            {pending.length + pickupReady.length + returnReady.length === 0 && <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">No pending requests.</p>}
           </div>
         </Card>
       </div>
@@ -159,7 +200,7 @@ export default function AdminDashboard() {
         <h2 className="text-lg font-semibold">Bookings trend</h2>
         <div className="mt-4 h-64">
           <ResponsiveContainer>
-            <BarChart data={revenueData}>
+            <BarChart data={revenueTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
               <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />

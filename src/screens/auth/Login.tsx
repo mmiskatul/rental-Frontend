@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/api";
+import { addFavoriteCar } from "@/lib/favorites-api";
 import { toast } from "sonner";
 
 type AuthResponse = {
@@ -33,6 +34,10 @@ export default function Login() {
         body: JSON.stringify(credentials),
       });
       await refreshUser();
+      const favoriteCarId = searchParams.get("favoriteCar");
+      if (favoriteCarId && data.user.role !== "admin") {
+        await addFavoriteCar(favoriteCarId).catch(() => null);
+      }
       toast.success("Signed in");
       router.push(searchParams.get("next") ?? (data.user.role === "admin" ? "/admin" : "/dashboard"));
     } catch (error) {

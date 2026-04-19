@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, LayoutGrid, List, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,14 @@ import { EmptyState } from "@/components/EmptyState";
 import type { Car } from "@/lib/mock-data";
 import { brands, carTypes, fuelTypes, transmissions, locations } from "@/lib/mock-data";
 import { listCars } from "@/lib/cars-api";
+import { addFavoriteCar, listFavoriteCars, removeFavoriteCar } from "@/lib/favorites-api";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function Cars() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [cars, setCars] = useState<Car[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -53,6 +58,54 @@ export default function Cars() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadFavorites() {
+      if (isAuthLoading) return;
+      if (!isAuthenticated) {
+        setFavorites([]);
+        return;
+      }
+
+      try {
+        const data = await listFavoriteCars();
+        if (mounted) setFavorites(data.map((car) => car.id));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not load favorites.");
+      }
+    }
+
+    loadFavorites();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, isAuthLoading]);
+
+  async function handleToggleFavorite(id: string) {
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent("/dashboard/favorites")}&favoriteCar=${encodeURIComponent(id)}`);
+      return;
+    }
+
+    const wasFavorite = favorites.includes(id);
+    setFavorites((current) => (wasFavorite ? current.filter((favorite) => favorite !== id) : [...current, id]));
+
+    try {
+      if (wasFavorite) {
+        await removeFavoriteCar(id);
+        toast.success("Removed from favorites");
+      } else {
+        await addFavoriteCar(id);
+        toast.success("Added to favorites");
+      }
+    } catch (error) {
+      setFavorites((current) => (wasFavorite ? [...current, id] : current.filter((favorite) => favorite !== id)));
+      toast.error(error instanceof Error ? error.message : "Could not update favorite.");
+    }
+  }
 
   const filtered = useMemo(() => {
     let r = cars.filter((c) => {
@@ -203,7 +256,7 @@ export default function Cars() {
                   car={car}
                   view={view}
                   isFavorite={favorites.includes(car.id)}
-                  onToggleFavorite={(id) => toggle(favorites, id, setFavorites)}
+                  onToggleFavorite={handleToggleFavorite}
                 />
               ))}
             </div>

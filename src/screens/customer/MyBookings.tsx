@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, ArrowRight, Calendar, MapPin, Clock3 } from "lucide-react";
+import { Search, ArrowRight, Calendar, MapPin, Clock3, KeyRound, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { formatCurrency, type Booking, type BookingStatus } from "@/lib/mock-data";
-import { listBookings } from "@/lib/bookings-api";
+import { confirmPickup, listBookings, requestReturn } from "@/lib/bookings-api";
 import { toast } from "sonner";
 
-const tabs: ("all" | BookingStatus)[] = ["all", "pending", "approved", "active", "completed", "cancelled"];
+const tabs: ("all" | BookingStatus)[] = ["all", "pending", "approved", "pickup_requested", "active", "return_requested", "completed", "cancelled"];
 type CustomerBooking = Booking & { carName?: string; carImage?: string | null };
 
 export default function MyBookings() {
@@ -47,6 +47,16 @@ export default function MyBookings() {
     if (q && !`${b.id} ${b.carName ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
+
+  async function handleLifecycle(id: string, action: "pickup" | "return") {
+    try {
+      const updated = action === "pickup" ? await confirmPickup(id) : await requestReturn(id);
+      setBookings((current) => current.map((booking) => (booking.id === id ? updated : booking)));
+      toast.success(action === "pickup" ? "Pickup confirmed. Rental is now active." : "Return request sent to admin.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update booking.");
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -92,6 +102,12 @@ export default function MyBookings() {
                 </div>
                 <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:text-right">
                   <p className="text-lg font-bold">{formatCurrency(b.total)}</p>
+                  {b.status === "pickup_requested" && (
+                    <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleLifecycle(b.id, "pickup")}><KeyRound className="mr-1 h-3.5 w-3.5" /> Confirm Pickup</Button>
+                  )}
+                  {b.status === "active" && (
+                    <Button size="sm" onClick={() => handleLifecycle(b.id, "return")}><RotateCcw className="mr-1 h-3.5 w-3.5" /> Request Return</Button>
+                  )}
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/dashboard/bookings/${b.id}`}>View <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
                   </Button>

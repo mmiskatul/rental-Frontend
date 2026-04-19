@@ -13,12 +13,13 @@ import {
   X,
   LogOut,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { listNotifications } from "@/lib/notifications-api";
 import { cn } from "@/lib/utils";
 
 const adminNav = [
@@ -32,6 +33,26 @@ const adminNav = [
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUnreadCount() {
+      try {
+        const data = await listNotifications();
+        if (mounted) setUnreadCount(data.unreadCount);
+      } catch {
+        if (mounted) setUnreadCount(0);
+      }
+    }
+
+    loadUnreadCount();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -89,9 +110,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <Input placeholder="Search cars, bookings, customers…" className="pl-9 bg-secondary/60 border-transparent" />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-destructive" />
+            <Button asChild variant="ghost" size="icon" className="relative">
+              <Link href="/admin/notifications" aria-label="Notifications">
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-destructive" />}
+              </Link>
             </Button>
             <div className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-secondary">
               <Avatar className="h-8 w-8"><AvatarFallback className="bg-primary text-primary-foreground text-xs">AD</AvatarFallback></Avatar>

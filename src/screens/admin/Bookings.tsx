@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Eye, Check, X } from "lucide-react";
+import { Search, Eye, Check, X, KeyRound, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency, type Booking, type BookingStatus } from "@/lib/mock-data";
-import { listBookings, updateBookingStatus } from "@/lib/bookings-api";
+import { confirmReturn, listBookings, requestPickup, updateBookingStatus } from "@/lib/bookings-api";
 import { toast } from "sonner";
 
-const tabs: ("all" | BookingStatus)[] = ["all", "pending", "approved", "active", "completed", "rejected", "cancelled"];
+const tabs: ("all" | BookingStatus)[] = ["all", "pending", "approved", "pickup_requested", "active", "return_requested", "completed", "rejected", "cancelled"];
 type AdminBooking = Booking & { carName?: string; carImage?: string | null };
 
 export default function AdminBookings() {
@@ -47,6 +47,16 @@ export default function AdminBookings() {
       const updated = await updateBookingStatus(id, status);
       setBookings((current) => current.map((booking) => (booking.id === id ? updated : booking)));
       toast.success(status === "approved" ? "Booking approved" : "Booking rejected");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update booking.");
+    }
+  }
+
+  async function handleAction(id: string, action: "pickup" | "return") {
+    try {
+      const updated = action === "pickup" ? await requestPickup(id) : await confirmReturn(id);
+      setBookings((current) => current.map((booking) => (booking.id === id ? updated : booking)));
+      toast.success(action === "pickup" ? "Pickup confirmation request sent" : "Return confirmed");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update booking.");
     }
@@ -111,6 +121,12 @@ export default function AdminBookings() {
                           <Button size="icon" className="h-8 w-8 bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleStatus(b.id, "approved")}><Check className="h-4 w-4" /></Button>
                           <Button size="icon" variant="outline" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleStatus(b.id, "rejected")}><X className="h-4 w-4" /></Button>
                         </>
+                      )}
+                      {b.status === "approved" && (
+                        <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => handleAction(b.id, "pickup")}><KeyRound className="h-3.5 w-3.5" /> Request Pickup</Button>
+                      )}
+                      {b.status === "return_requested" && (
+                        <Button size="sm" className="h-8 gap-1 bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleAction(b.id, "return")}><RotateCcw className="h-3.5 w-3.5" /> Confirm Return</Button>
                       )}
                       <Button asChild variant="ghost" size="icon" className="h-8 w-8"><Link href={`/admin/bookings/${b.id}`}><Eye className="h-4 w-4" /></Link></Button>
                     </div>

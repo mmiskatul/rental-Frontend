@@ -6,33 +6,44 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { CarCard } from "@/components/CarCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { cars, formatCurrency, type Booking } from "@/lib/mock-data";
+import { formatCurrency, type Booking, type Car } from "@/lib/mock-data";
 import { listBookings } from "@/lib/bookings-api";
+import { listRecommendedCars } from "@/lib/cars-api";
+import { listNotifications, type AppNotification } from "@/lib/notifications-api";
 import { toast } from "sonner";
 
 type CustomerBooking = Booking & { carName?: string; carImage?: string | null };
 
 export default function Dashboard() {
   const [bookings, setBookings] = useState<CustomerBooking[]>([]);
-  const recommended = cars.filter((c) => c.available).slice(0, 3);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [recommended, setRecommended] = useState<Car[]>([]);
   const recent = bookings.slice(0, 4);
-  const active = bookings.filter((booking) => booking.status === "active" || booking.status === "approved").length;
+  const active = bookings.filter((booking) => booking.status === "approved" || booking.status === "pickup_requested" || booking.status === "active" || booking.status === "return_requested").length;
   const pending = bookings.filter((booking) => booking.status === "pending").length;
   const completed = bookings.filter((booking) => booking.status === "completed").length;
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadBookings() {
+    async function loadDashboard() {
       try {
-        const loaded = await listBookings();
-        if (mounted) setBookings(loaded);
+        const [loadedBookings, loadedNotifications, loadedRecommended] = await Promise.all([
+          listBookings(),
+          listNotifications(),
+          listRecommendedCars(3),
+        ]);
+        if (mounted) {
+          setBookings(loadedBookings);
+          setNotifications(loadedNotifications.notifications);
+          setRecommended(loadedRecommended);
+        }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not load your bookings.");
+        toast.error(error instanceof Error ? error.message : "Could not load your dashboard.");
       }
     }
 
-    loadBookings();
+    loadDashboard();
 
     return () => {
       mounted = false;
@@ -83,16 +94,16 @@ export default function Dashboard() {
             <Bell className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="mt-4 space-y-3">
-            {recent.slice(0, 3).map((booking) => (
-              <div key={booking.id} className="flex gap-3">
-                <div className={`mt-1.5 h-2 w-2 flex-none rounded-full ${booking.status === "approved" ? "bg-success" : "bg-warning"}`} />
+            {notifications.slice(0, 3).map((notification) => (
+              <div key={notification.id} className="flex gap-3">
+                <div className={`mt-1.5 h-2 w-2 flex-none rounded-full ${notification.read ? "bg-muted-foreground/40" : "bg-accent"}`} />
                 <div>
-                  <p className="text-sm font-medium">Booking {booking.id} {booking.status}</p>
-                  <p className="text-xs text-muted-foreground">{booking.carName}</p>
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{notification.description}</p>
                 </div>
               </div>
             ))}
-            {recent.length === 0 && <p className="text-sm text-muted-foreground">No booking updates yet.</p>}
+            {notifications.length === 0 && <p className="text-sm text-muted-foreground">No booking updates yet.</p>}
           </div>
           <Button asChild variant="outline" size="sm" className="mt-5 w-full">
             <Link href="/dashboard/notifications">See all notifications</Link>
@@ -107,6 +118,11 @@ export default function Dashboard() {
         </div>
         <div className="mt-4 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {recommended.map((c) => <CarCard key={c.id} car={c} />)}
+          {recommended.length === 0 && (
+            <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground md:col-span-2 lg:col-span-3">
+              Book a car to unlock personalized recommendations.
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -12,12 +12,13 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { listNotifications } from "@/lib/notifications-api";
 import { cn } from "@/lib/utils";
 
 const customerNav = [
@@ -30,7 +31,27 @@ const customerNav = [
 
 export function CustomerLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUnreadCount() {
+      try {
+        const data = await listNotifications();
+        if (mounted) setUnreadCount(data.unreadCount);
+      } catch {
+        if (mounted) setUnreadCount(0);
+      }
+    }
+
+    loadUnreadCount();
+
+    return () => {
+      mounted = false;
+    };
+  }, [pathname]);
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -63,8 +84,8 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
             >
               <item.icon className="h-4 w-4" />
               {item.label}
-              {item.to === "/dashboard/notifications" && (
-                <Badge className="ml-auto bg-accent text-accent-foreground hover:bg-accent">3</Badge>
+              {item.to === "/dashboard/notifications" && unreadCount > 0 && (
+                <Badge className="ml-auto bg-accent text-accent-foreground hover:bg-accent">{unreadCount}</Badge>
               )}
             </NavLink>
           ))}
@@ -90,7 +111,7 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
             <Button asChild variant="ghost" size="icon" className="relative">
               <Link href="/dashboard/notifications">
                 <Bell className="h-4 w-4" />
-                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-accent" />
+                {unreadCount > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-accent" />}
               </Link>
             </Button>
             <Link href="/dashboard/profile" className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-secondary">

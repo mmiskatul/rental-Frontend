@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   MapPin,
@@ -17,6 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CarCard } from "@/components/CarCard";
 import { cars } from "@/lib/mock-data";
+import { listCarCategories, listTrendingCars, type CarCategory, type TrendingCar } from "@/lib/cars-api";
+import { addFavoriteCar, listFavoriteCars, removeFavoriteCar } from "@/lib/favorites-api";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import heroCar from "@/assets/hero-car.jpg";
 
 const benefits = [
@@ -33,7 +39,7 @@ const steps = [
   { n: "04", title: "Pick up & drive", desc: "Collect your car at the agreed location and enjoy a premium ride." },
 ];
 
-const categories = [
+const defaultCategories: CarCategory[] = [
   { type: "Luxury", count: 24 },
   { type: "SUV", count: 38 },
   { type: "Electric", count: 19 },
@@ -55,7 +61,99 @@ const faqs = [
 ];
 
 export default function Index() {
-  const featured = cars.slice(0, 3);
+  const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const [featured, setFeatured] = useState<TrendingCar[]>(() =>
+    cars.slice(0, 3).map((car) => ({ ...car, bookingCount: 0, completedCount: 0 })),
+  );
+  const [categories, setCategories] = useState<CarCategory[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadTrendingCars() {
+      try {
+        const trending = await listTrendingCars(3);
+        if (mounted && trending.length > 0) setFeatured(trending);
+      } catch {
+        if (mounted) setFeatured(cars.slice(0, 3).map((car) => ({ ...car, bookingCount: 0, completedCount: 0 })));
+      }
+    }
+
+    loadTrendingCars();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadCategories() {
+      try {
+        const data = await listCarCategories();
+        if (mounted) setCategories(data);
+      } catch {
+        if (mounted) setCategories(defaultCategories);
+      }
+    }
+
+    loadCategories();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadFavorites() {
+      if (isAuthLoading) return;
+      if (!isAuthenticated) {
+        setFavorites([]);
+        return;
+      }
+
+      try {
+        const data = await listFavoriteCars();
+        if (mounted) setFavorites(data.map((car) => car.id));
+      } catch {
+        if (mounted) setFavorites([]);
+      }
+    }
+
+    loadFavorites();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, isAuthLoading]);
+
+  async function handleToggleFavorite(id: string) {
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent("/dashboard/favorites")}&favoriteCar=${encodeURIComponent(id)}`);
+      return;
+    }
+
+    const wasFavorite = favorites.includes(id);
+    setFavorites((current) => (wasFavorite ? current.filter((favorite) => favorite !== id) : [...current, id]));
+
+    try {
+      if (wasFavorite) {
+        await removeFavoriteCar(id);
+        toast.success("Removed from favorites");
+      } else {
+        await addFavoriteCar(id);
+        toast.success("Added to favorites");
+      }
+    } catch (error) {
+      setFavorites((current) => (wasFavorite ? [...current, id] : current.filter((favorite) => favorite !== id)));
+      toast.error(error instanceof Error ? error.message : "Could not update favorite.");
+    }
+  }
 
   return (
     <>
@@ -151,6 +249,11 @@ export default function Index() {
               <p className="text-xs text-muted-foreground">{c.count} vehicles</p>
             </Link>
           ))}
+          {categories.length === 0 && (
+            <div className="col-span-full rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              No vehicle categories are available yet.
+            </div>
+          )}
         </div>
       </section>
 
@@ -166,7 +269,30 @@ export default function Index() {
           </Button>
         </div>
         <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {featured.map((car) => <CarCard key={car.id} car={car} />)}
+          {featured.map((car) => {
+            const loginToBooking = `/login?next=${encodeURIComponent(`/cars/${car.id}#booking`)}`;
+            return (
+              <div key={car.id} className="space-y-3">
+                <CarCard
+                  car={car}
+                  detailsHref={loginToBooking}
+                  bookingHref={loginToBooking}
+                  isFavorite={favorites.includes(car.id)}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-border bg-card px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Booked</p>
+                    <p className="mt-0.5 text-sm font-semibold">{car.bookingCount} times</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Completed</p>
+                    <p className="mt-0.5 text-sm font-semibold">{car.completedCount} trips</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

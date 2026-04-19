@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -5,14 +6,60 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getAdminSettings, updateAdminSettings, type AdminSettings as AdminSettingsData } from "@/lib/settings-api";
 import { toast } from "sonner";
 
 export default function AdminSettings() {
+  const [settings, setSettings] = useState<AdminSettingsData | null>(null);
+  const [savedSettings, setSavedSettings] = useState<AdminSettingsData | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const isDirty = useMemo(() => JSON.stringify(settings) !== JSON.stringify(savedSettings), [settings, savedSettings]);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const loaded = await getAdminSettings();
+        setSettings(loaded);
+        setSavedSettings(loaded);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not load settings.");
+      }
+    }
+
+    loadSettings();
+  }, []);
+
+  async function handleUpdate() {
+    if (!settings) return;
+    setIsSaving(true);
+    try {
+      const updated = await updateAdminSettings(settings);
+      setSettings(updated);
+      setSavedSettings(updated);
+      toast.success("Settings updated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update settings.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (!settings) {
+    return <div className="h-[420px] rounded-lg bg-secondary/70" />;
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold sm:text-3xl">Settings</h1>
-        <p className="mt-1 text-muted-foreground">Configure your business, policies and platform preferences.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold sm:text-3xl">Settings</h1>
+          <p className="mt-1 text-muted-foreground">Configure your business, policies and platform preferences.</p>
+        </div>
+        {isDirty && (
+          <Button onClick={handleUpdate} disabled={isSaving} className="bg-primary hover:bg-primary-glow">
+            {isSaving ? "Updating..." : "Update settings"}
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="business">
@@ -27,64 +74,60 @@ export default function AdminSettings() {
         <TabsContent value="business" className="mt-6">
           <Card className="p-6">
             <h2 className="text-lg font-semibold">Business profile</h2>
-            <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); toast.success("Saved"); }}>
-              <div><Label>Company name</Label><Input defaultValue="DriveFlow Inc." /></div>
-              <div><Label>Support email</Label><Input defaultValue="support@driveflow.com" /></div>
-              <div><Label>Support phone</Label><Input defaultValue="+1 (800) 555-0199" /></div>
-              <div><Label>Business hours</Label><Input defaultValue="Mon–Sun, 7am–11pm ET" /></div>
-              <div className="sm:col-span-2"><Label>HQ address</Label><Input defaultValue="350 5th Ave, New York, NY" /></div>
-              <div className="sm:col-span-2"><Label>About</Label><Textarea rows={3} defaultValue="DriveFlow is a premium car rental platform." /></div>
-              <div className="sm:col-span-2 flex justify-end"><Button type="submit" className="bg-primary hover:bg-primary-glow">Save changes</Button></div>
-            </form>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <Field label="Company name" value={settings.business.companyName} onChange={(value) => setSettings({ ...settings, business: { ...settings.business, companyName: value } })} />
+              <Field label="Support email" value={settings.business.supportEmail} onChange={(value) => setSettings({ ...settings, business: { ...settings.business, supportEmail: value } })} />
+              <Field label="Support phone" value={settings.business.supportPhone} onChange={(value) => setSettings({ ...settings, business: { ...settings.business, supportPhone: value } })} />
+              <Field label="Business hours" value={settings.business.businessHours} onChange={(value) => setSettings({ ...settings, business: { ...settings.business, businessHours: value } })} />
+              <Field label="HQ address" value={settings.business.hqAddress} className="sm:col-span-2" onChange={(value) => setSettings({ ...settings, business: { ...settings.business, hqAddress: value } })} />
+              <div className="sm:col-span-2">
+                <Label>About</Label>
+                <Textarea rows={3} value={settings.business.about} onChange={(event) => setSettings({ ...settings, business: { ...settings.business, about: event.target.value } })} />
+              </div>
+            </div>
           </Card>
         </TabsContent>
 
         <TabsContent value="booking" className="mt-6">
-          <Card className="p-6 space-y-5">
+          <Card className="space-y-5 p-6">
             <h2 className="text-lg font-semibold">Booking policy</h2>
-            {[
-              { label: "Auto-approve verified customers", desc: "Skip manual review for repeat customers with 3+ completed bookings", on: false },
-              { label: "Require deposit", desc: "Hold a security deposit on the customer's card", on: true },
-              { label: "Allow same-day bookings", desc: "Customers can book a car for pickup the same day", on: true },
-              { label: "Minimum rental period", desc: "Enforce a minimum number of rental days", on: false },
-            ].map((p, i) => (
-              <Row key={i} {...p} />
-            ))}
+            <SwitchRow label="Auto-approve verified customers" desc="Skip manual review for repeat customers with 3+ completed bookings" checked={settings.bookingPolicy.autoApproveVerifiedCustomers} onCheckedChange={(value) => setSettings({ ...settings, bookingPolicy: { ...settings.bookingPolicy, autoApproveVerifiedCustomers: value } })} />
+            <SwitchRow label="Require deposit" desc="Hold a security deposit on the customer's card" checked={settings.bookingPolicy.requireDeposit} onCheckedChange={(value) => setSettings({ ...settings, bookingPolicy: { ...settings.bookingPolicy, requireDeposit: value } })} />
+            <SwitchRow label="Allow same-day bookings" desc="Customers can book a car for pickup the same day" checked={settings.bookingPolicy.allowSameDayBookings} onCheckedChange={(value) => setSettings({ ...settings, bookingPolicy: { ...settings.bookingPolicy, allowSameDayBookings: value } })} />
+            <SwitchRow label="Minimum rental period" desc="Enforce a minimum number of rental days" checked={settings.bookingPolicy.enforceMinimumRentalPeriod} onCheckedChange={(value) => setSettings({ ...settings, bookingPolicy: { ...settings.bookingPolicy, enforceMinimumRentalPeriod: value } })} />
           </Card>
         </TabsContent>
 
         <TabsContent value="cancellation" className="mt-6">
-          <Card className="p-6 space-y-4">
+          <Card className="space-y-4 p-6">
             <h2 className="text-lg font-semibold">Cancellation rules</h2>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div><Label>Free cancellation window (hours)</Label><Input type="number" defaultValue={24} /></div>
-              <div><Label>Late cancellation fee (%)</Label><Input type="number" defaultValue={25} /></div>
-              <div><Label>No-show fee</Label><Input defaultValue="100% of first day" /></div>
-              <div><Label>Refund processing time</Label><Input defaultValue="5 business days" /></div>
+              <NumberField label="Free cancellation window (hours)" value={settings.cancellation.freeCancellationHours} onChange={(value) => setSettings({ ...settings, cancellation: { ...settings.cancellation, freeCancellationHours: value } })} />
+              <NumberField label="Late cancellation fee (%)" value={settings.cancellation.lateCancellationFeePercent} onChange={(value) => setSettings({ ...settings, cancellation: { ...settings.cancellation, lateCancellationFeePercent: value } })} />
+              <Field label="No-show fee" value={settings.cancellation.noShowFee} onChange={(value) => setSettings({ ...settings, cancellation: { ...settings.cancellation, noShowFee: value } })} />
+              <Field label="Refund processing time" value={settings.cancellation.refundProcessingTime} onChange={(value) => setSettings({ ...settings, cancellation: { ...settings.cancellation, refundProcessingTime: value } })} />
             </div>
           </Card>
         </TabsContent>
 
         <TabsContent value="pricing" className="mt-6">
-          <Card className="p-6 space-y-4">
+          <Card className="space-y-4 p-6">
             <h2 className="text-lg font-semibold">Pricing rules</h2>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div><Label>Service fee (%)</Label><Input type="number" defaultValue={8} /></div>
-              <div><Label>Tax rate (%)</Label><Input type="number" defaultValue={9} /></div>
-              <div><Label>Weekly discount (%)</Label><Input type="number" defaultValue={10} /></div>
-              <div><Label>Monthly discount (%)</Label><Input type="number" defaultValue={20} /></div>
+              <NumberField label="Service fee (%)" value={settings.pricing.serviceFeePercent} onChange={(value) => setSettings({ ...settings, pricing: { ...settings.pricing, serviceFeePercent: value } })} />
+              <NumberField label="Tax rate (%)" value={settings.pricing.taxRatePercent} onChange={(value) => setSettings({ ...settings, pricing: { ...settings.pricing, taxRatePercent: value } })} />
+              <NumberField label="Weekly discount (%)" value={settings.pricing.weeklyDiscountPercent} onChange={(value) => setSettings({ ...settings, pricing: { ...settings.pricing, weeklyDiscountPercent: value } })} />
+              <NumberField label="Monthly discount (%)" value={settings.pricing.monthlyDiscountPercent} onChange={(value) => setSettings({ ...settings, pricing: { ...settings.pricing, monthlyDiscountPercent: value } })} />
             </div>
           </Card>
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-6">
-          <Card className="p-6 space-y-5">
+          <Card className="space-y-5 p-6">
             <h2 className="text-lg font-semibold">Notification preferences</h2>
-            {[
-              { label: "Email notifications for new bookings", desc: "Get notified when a customer requests a booking", on: true },
-              { label: "SMS alerts for urgent matters", desc: "Receive SMS for cancellations and disputes", on: true },
-              { label: "Daily summary report", desc: "Email digest of yesterday's activity", on: false },
-            ].map((p, i) => <Row key={i} {...p} />)}
+            <SwitchRow label="Email notifications for new bookings" desc="Get notified when a customer requests a booking" checked={settings.notifications.emailNewBookings} onCheckedChange={(value) => setSettings({ ...settings, notifications: { ...settings.notifications, emailNewBookings: value } })} />
+            <SwitchRow label="SMS alerts for urgent matters" desc="Receive SMS for cancellations and disputes" checked={settings.notifications.smsUrgentAlerts} onCheckedChange={(value) => setSettings({ ...settings, notifications: { ...settings.notifications, smsUrgentAlerts: value } })} />
+            <SwitchRow label="Daily summary report" desc="Email digest of yesterday's activity" checked={settings.notifications.dailySummaryReport} onCheckedChange={(value) => setSettings({ ...settings, notifications: { ...settings.notifications, dailySummaryReport: value } })} />
           </Card>
         </TabsContent>
       </Tabs>
@@ -92,11 +135,29 @@ export default function AdminSettings() {
   );
 }
 
-function Row({ label, desc, on }: { label: string; desc: string; on: boolean }) {
+function Field({ label, value, onChange, className }: { label: string; value: string; onChange: (value: string) => void; className?: string }) {
+  return (
+    <div className={className}>
+      <Label>{label}</Label>
+      <Input value={value} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  );
+}
+
+function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+    </div>
+  );
+}
+
+function SwitchRow({ label, desc, checked, onCheckedChange }: { label: string; desc: string; checked: boolean; onCheckedChange: (value: boolean) => void }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border pb-4 last:border-0">
       <div><p className="text-sm font-medium">{label}</p><p className="text-xs text-muted-foreground">{desc}</p></div>
-      <Switch defaultChecked={on} />
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>
   );
 }

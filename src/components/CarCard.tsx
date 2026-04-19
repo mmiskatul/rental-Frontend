@@ -10,14 +10,19 @@ interface CarCardProps {
   view?: "grid" | "list";
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
+  detailsHref?: string;
+  bookingHref?: string;
 }
 
-export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: CarCardProps) {
+export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite, detailsHref, bookingHref }: CarCardProps) {
+  const detailsUrl = detailsHref ?? `/cars/${car.id}`;
+  const bookingUrl = bookingHref ?? detailsUrl;
+
   if (view === "list") {
     return (
       <article className="card-elevated group overflow-hidden p-3 sm:p-4">
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Link href={`/cars/${car.id}`} className="relative block aspect-[16/10] w-full overflow-hidden rounded-xl bg-secondary sm:w-72 sm:flex-none">
+          <Link href={detailsUrl} className="relative block aspect-[16/10] w-full overflow-hidden rounded-xl bg-secondary sm:w-72 sm:flex-none">
             <img
               src={car.image}
               alt={`${car.name} for rent in ${car.location}`}
@@ -38,13 +43,14 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{car.type} · {car.brand}</p>
-                <Link href={`/cars/${car.id}`}>
+                <Link href={detailsUrl}>
                   <h3 className="mt-1 text-lg font-semibold leading-tight hover:text-accent">{car.name}</h3>
                 </Link>
               </div>
               <button
                 onClick={() => onToggleFavorite?.(car.id)}
                 aria-label="Save to favorites"
+                disabled={!onToggleFavorite}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background hover:bg-secondary"
               >
                 <Heart className={cn("h-4 w-4", isFavorite && "fill-destructive text-destructive")} />
@@ -63,8 +69,8 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
                 <p className="text-2xl font-bold">{formatCurrency(car.pricePerDay)}<span className="text-sm font-normal text-muted-foreground">/day</span></p>
               </div>
               <div className="flex gap-2">
-                <Button asChild variant="outline" size="sm"><Link href={`/cars/${car.id}`}>Details</Link></Button>
-                <Button asChild size="sm" disabled={!car.available}><Link href={`/cars/${car.id}`}>Book Now</Link></Button>
+                <Button asChild variant="outline" size="sm"><Link href={detailsUrl}>Details</Link></Button>
+                <Button asChild size="sm" disabled={!car.available}><Link href={bookingUrl}>Book Now</Link></Button>
               </div>
             </div>
           </div>
@@ -75,7 +81,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
 
   return (
     <article className="card-elevated group flex flex-col overflow-hidden">
-      <Link href={`/cars/${car.id}`} className="relative block aspect-[16/10] overflow-hidden bg-secondary">
+      <Link href={detailsUrl} className="relative block aspect-[16/10] overflow-hidden bg-secondary">
         <img
           src={car.image}
           alt={`${car.name} for rent in ${car.location}`}
@@ -91,9 +97,14 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
           {car.available ? "Available" : "Booked"}
         </span>
         <button
-          onClick={(e) => { e.preventDefault(); onToggleFavorite?.(car.id); }}
+          onClick={(e) => {
+            if (!onToggleFavorite) return;
+            e.preventDefault();
+            onToggleFavorite(car.id);
+          }}
           aria-label="Save to favorites"
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 backdrop-blur transition hover:bg-background"
+          disabled={!onToggleFavorite}
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 backdrop-blur transition hover:bg-background disabled:cursor-default"
         >
           <Heart className={cn("h-4 w-4", isFavorite && "fill-destructive text-destructive")} />
         </button>
@@ -101,7 +112,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
 
       <div className="flex flex-1 flex-col p-5">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{car.type} · {car.brand}</p>
-        <Link href={`/cars/${car.id}`}>
+        <Link href={detailsUrl}>
           <h3 className="mt-1 text-base font-semibold leading-tight hover:text-accent">{car.name}</h3>
         </Link>
 
@@ -117,7 +128,7 @@ export function CarCard({ car, view = "grid", isFavorite, onToggleFavorite }: Ca
             <p className="text-xl font-bold">{formatCurrency(car.pricePerDay)}<span className="text-sm font-normal text-muted-foreground">/day</span></p>
           </div>
           <Button asChild size="sm" disabled={!car.available}>
-            <Link href={`/cars/${car.id}`}>Book Now</Link>
+            <Link href={bookingUrl}>Book Now</Link>
           </Button>
         </div>
       </div>

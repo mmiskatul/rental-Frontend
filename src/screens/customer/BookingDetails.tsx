@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft, MapPin, Calendar, Phone, MessageCircle, AlertCircle, CheckCircle2, type LucideIcon } from "lucide-react";
+import { ChevronLeft, MapPin, Calendar, Phone, MessageCircle, AlertCircle, CheckCircle2, KeyRound, RotateCcw, Star, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatCurrency, type Booking } from "@/lib/mock-data";
-import { getBooking } from "@/lib/bookings-api";
+import { confirmPickup, getBooking, requestReturn } from "@/lib/bookings-api";
+import { createReview, listReviews, type Review } from "@/lib/reviews-api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -18,6 +20,10 @@ export default function BookingDetails() {
   const rawId = params?.id;
   const bookingId = Array.isArray(rawId) ? rawId[0] : rawId;
   const [booking, setBooking] = useState<CustomerBooking | null>(null);
+  const [review, setReview] = useState<Review | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -28,7 +34,11 @@ export default function BookingDetails() {
       setIsLoading(true);
       try {
         const loaded = await getBooking(bookingId);
-        if (mounted) setBooking(loaded);
+        const reviews = await listReviews({ bookingId });
+        if (mounted) {
+          setBooking(loaded);
+          setReview(reviews[0] ?? null);
+        }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Could not load booking.");
       } finally {
@@ -59,6 +69,33 @@ export default function BookingDetails() {
   }
 
   const timeline = buildTimeline(booking.status);
+
+  async function handleLifecycle(action: "pickup" | "return") {
+    if (!booking) return;
+    try {
+      const updated = action === "pickup" ? await confirmPickup(booking.id) : await requestReturn(booking.id);
+      setBooking(updated);
+      toast.success(action === "pickup" ? "Pickup confirmed. Rental is now active." : "Return request sent to admin.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update booking.");
+    }
+  }
+
+  async function handleReviewSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!booking) return;
+
+    setIsSubmittingReview(true);
+    try {
+      const created = await createReview({ bookingId: booking.id, rating, comment });
+      setReview(created);
+      toast.success("Review submitted");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not submit review.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -119,6 +156,33 @@ export default function BookingDetails() {
               <p className="mt-2 text-sm text-muted-foreground">{booking.notes}</p>
             </Card>
           )}
+
+          {booking.status === "completed" && (
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold">Review your rental</h2>
+              {review ? (
+                <div className="mt-4 rounded-xl border border-border p-4">
+                  <div className="flex gap-1 text-accent">
+                    {Array.from({ length: review.rating }).map((_, index) => <Star key={index} className="h-4 w-4 fill-current" />)}
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">{review.comment}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Submitted {review.createdAt}</p>
+                </div>
+              ) : (
+                <form className="mt-4 space-y-4" onSubmit={handleReviewSubmit}>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <button key={value} type="button" className="text-accent" onClick={() => setRating(value)} aria-label={`${value} star rating`}>
+                        <Star className={`h-6 w-6 ${value <= rating ? "fill-current" : ""}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <Textarea value={comment} onChange={(event) => setComment(event.target.value)} required rows={4} placeholder="Share how the rental went..." />
+                  <Button type="submit" disabled={isSubmittingReview}>{isSubmittingReview ? "Submitting..." : "Submit Review"}</Button>
+                </form>
+              )}
+            </Card>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -136,6 +200,19 @@ export default function BookingDetails() {
               <Button variant="outline" className="mt-5 w-full text-destructive hover:text-destructive" onClick={() => toast.success("Booking cancellation requested")}>
                 Cancel booking
               </Button>
+            )}
+            {booking.status === "pickup_requested" && (
+              <Button className="mt-5 w-full bg-success hover:bg-success/90 text-success-foreground" onClick={() => handleLifecycle("pickup")}>
+                <KeyRound className="mr-2 h-4 w-4" /> Confirm Vehicle Pickup
+              </Button>
+            )}
+            {booking.status === "active" && (
+              <Button className="mt-5 w-full" onClick={() => handleLifecycle("return")}>
+                <RotateCcw className="mr-2 h-4 w-4" /> Request Return Confirmation
+              </Button>
+            )}
+            {booking.status === "return_requested" && (
+              <p className="mt-5 rounded-lg bg-secondary/60 p-3 text-xs text-muted-foreground">Return request sent. Waiting for admin confirmation.</p>
             )}
           </Card>
 
@@ -159,16 +236,16 @@ export default function BookingDetails() {
 }
 
 function buildTimeline(status: Booking["status"]) {
-  const approved = ["approved", "active", "completed"].includes(status);
-  const active = ["active", "completed"].includes(status);
+  const approved = ["approved", "pickup_requested", "active", "return_requested", "completed"].includes(status);
+  const active = ["active", "return_requested", "completed"].includes(status);
   const completed = status === "completed";
   return [
     { label: "Request submitted", done: true },
     { label: "Admin reviewing", done: status !== "pending" },
     { label: status === "rejected" ? "Rejected" : "Approved", done: approved || status === "rejected" },
-    { label: "Vehicle pickup", done: active },
+    { label: status === "pickup_requested" ? "Pickup confirmation requested" : "Vehicle pickup", done: status === "pickup_requested" || active },
     { label: "Rental active", done: active },
-    { label: "Returned", done: completed },
+    { label: status === "return_requested" ? "Return confirmation requested" : "Returned", done: status === "return_requested" || completed },
   ];
 }
 

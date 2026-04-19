@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Heart, Share2, MapPin, Fuel, Cog, Users, Briefcase, Calendar as CalIcon,
   ShieldCheck, Phone, MessageCircle, Star, ChevronLeft, CheckCircle2,
@@ -16,6 +16,8 @@ import type { Car } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/mock-data";
 import { createBooking } from "@/lib/bookings-api";
 import { getCarById, listCars } from "@/lib/cars-api";
+import { addFavoriteCar, listFavoriteCars, removeFavoriteCar } from "@/lib/favorites-api";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +26,8 @@ const initialStartDate = toDateInputValue(today);
 const initialEndDate = toDateInputValue(addDays(today, 3));
 
 export default function CarDetails() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const params = useParams();
   const rawId = params?.id;
   const carId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -61,6 +65,31 @@ export default function CarDetails() {
       mounted = false;
     };
   }, [carId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadFavoriteState() {
+      if (!carId || isAuthLoading) return;
+      if (!isAuthenticated) {
+        setFav(false);
+        return;
+      }
+
+      try {
+        const favorites = await listFavoriteCars();
+        if (mounted) setFav(favorites.some((favorite) => favorite.id === carId));
+      } catch {
+        if (mounted) setFav(false);
+      }
+    }
+
+    loadFavoriteState();
+
+    return () => {
+      mounted = false;
+    };
+  }, [carId, isAuthenticated, isAuthLoading]);
 
   if (isLoading) {
     return (
@@ -110,6 +139,30 @@ export default function CarDetails() {
     }
   }
 
+  async function handleToggleFavorite() {
+    if (!car) return;
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent("/dashboard/favorites")}&favoriteCar=${encodeURIComponent(car.id)}`);
+      return;
+    }
+
+    const nextFavoriteState = !fav;
+    setFav(nextFavoriteState);
+
+    try {
+      if (nextFavoriteState) {
+        await addFavoriteCar(car.id);
+        toast.success("Added to favorites");
+      } else {
+        await removeFavoriteCar(car.id);
+        toast.success("Removed from favorites");
+      }
+    } catch (error) {
+      setFav(!nextFavoriteState);
+      toast.error(error instanceof Error ? error.message : "Could not update favorite.");
+    }
+  }
+
   return (
     <div className="container-px mx-auto max-w-7xl py-8">
       <Link href="/cars" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -145,7 +198,7 @@ export default function CarDetails() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={() => setFav(!fav)}>
+              <Button variant="outline" size="icon" onClick={handleToggleFavorite}>
                 <Heart className={cn("h-4 w-4", fav && "fill-destructive text-destructive")} />
               </Button>
               <Button variant="outline" size="icon" onClick={() => toast.success("Link copied")}><Share2 className="h-4 w-4" /></Button>
@@ -212,7 +265,7 @@ export default function CarDetails() {
         </div>
 
         {/* Right: Booking card */}
-        <aside className="lg:sticky lg:top-20 lg:h-fit">
+        <aside id="booking" className="scroll-mt-20 lg:sticky lg:top-20 lg:h-fit">
           <Card className="border-border p-6 shadow-elevated">
             <div className="flex items-baseline justify-between">
               <div>

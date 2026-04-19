@@ -4,8 +4,10 @@ import type { BookingStatus } from "@/lib/mock-data";
 const styles: Record<BookingStatus, string> = {
   pending: "bg-warning-soft text-warning border-warning/20",
   approved: "bg-info-soft text-info border-info/20",
+  pickup_requested: "bg-warning-soft text-warning border-warning/20",
   rejected: "bg-[hsl(var(--status-rejected-bg))] text-destructive border-destructive/20",
   active: "bg-success-soft text-success border-success/20",
+  return_requested: "bg-info-soft text-info border-info/20",
   completed: "bg-secondary text-secondary-foreground border-border",
   cancelled: "bg-muted text-muted-foreground border-border",
 };
@@ -13,8 +15,10 @@ const styles: Record<BookingStatus, string> = {
 const labels: Record<BookingStatus, string> = {
   pending: "Pending",
   approved: "Approved",
+  pickup_requested: "Pickup Requested",
   rejected: "Rejected",
   active: "Active",
+  return_requested: "Return Requested",
   completed: "Completed",
   cancelled: "Cancelled",
 };
