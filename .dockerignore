@@ -1,0 +1,15 @@
+.git
+.next
+node_modules
+backend
+dist
+dist-ssr
+coverage
+*.log
+*.local
+.env
+.env.*
+!.env.example
+Dockerfile
+docker-compose*.yml
+README.md
