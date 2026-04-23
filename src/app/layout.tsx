@@ -11,6 +11,9 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "DriveFlow | Premium Car Rentals",
   description: "Premium car rental platform with customer and admin dashboards.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
