@@ -31,6 +31,40 @@ export default function AddCar({ initial }: { initial?: Partial<Car> } = {}) {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    const yearValue = Number(year);
+    const priceValue = Number(pricePerDay);
+    const seatsValue = Number(seats);
+
+    if (!brand) {
+      toast.error("Select a brand before publishing.");
+      return;
+    }
+
+    if (!location) {
+      toast.error("Select a city before publishing.");
+      return;
+    }
+
+    if (!title.trim() || !model.trim()) {
+      toast.error("Enter the car display name and model.");
+      return;
+    }
+
+    if (!Number.isFinite(yearValue) || yearValue < 1990 || yearValue > 2100) {
+      toast.error("Enter a valid year between 1990 and 2100.");
+      return;
+    }
+
+    if (!Number.isFinite(priceValue) || priceValue <= 0) {
+      toast.error("Enter a valid daily price.");
+      return;
+    }
+
+    if (!Number.isFinite(seatsValue) || seatsValue < 1 || seatsValue > 20) {
+      toast.error("Enter a valid seat count between 1 and 20.");
+      return;
+    }
+
     if (!image && !isEdit) {
       toast.error("Upload a main image before publishing.");
       return;
@@ -40,15 +74,15 @@ export default function AddCar({ initial }: { initial?: Partial<Car> } = {}) {
 
     try {
       const payload = {
-        title,
+        title: title.trim(),
         brand,
-        model,
-        year: Number(year),
-        pricePerDay: Number(pricePerDay),
+        model: model.trim(),
+        year: yearValue,
+        pricePerDay: priceValue,
         location,
         image,
-        description,
-        seats: Number(seats),
+        description: description.trim(),
+        seats: seatsValue,
         transmission,
         fuelType,
       };
@@ -170,7 +204,7 @@ export default function AddCar({ initial }: { initial?: Partial<Car> } = {}) {
               <span className="text-xs">{image ? image.name : "Upload main image"}</span>
               <Input
                 type="file"
-                accept="image/png,image/jpeg,image/webp"
+                accept="image/*"
                 className="hidden"
                 onChange={(event) => setImage(event.target.files?.[0] ?? null)}
               />
