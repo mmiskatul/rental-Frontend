@@ -80,12 +80,6 @@ export default function VerifyEmail() {
     >
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <Label>Email</Label>
-          <div className="mt-2 rounded-md border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground">
-            {email || "No email found"}
-          </div>
-        </div>
-        <div>
           <Label>Verification code</Label>
           <Input
             inputMode="numeric"

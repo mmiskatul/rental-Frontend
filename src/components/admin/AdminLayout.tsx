@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { listNotifications } from "@/lib/notifications-api";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const adminNav = [
   { to: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
@@ -34,6 +35,8 @@ const adminNav = [
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { user } = useAuth();
+  const displayName = user?.name ?? "Administrator";
 
   useEffect(() => {
     let mounted = true;
@@ -117,9 +120,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </Button>
             <div className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-secondary">
-              <Avatar className="h-8 w-8"><AvatarFallback className="bg-primary text-primary-foreground text-xs">AD</AvatarFallback></Avatar>
+              <Avatar className="h-8 w-8"><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(displayName)}</AvatarFallback></Avatar>
               <div className="hidden sm:block">
-                <p className="text-sm font-medium leading-tight">Alex Drew</p>
+                <p className="text-sm font-medium leading-tight">{displayName}</p>
                 <p className="text-[10px] text-muted-foreground">Administrator</p>
               </div>
             </div>
@@ -131,4 +134,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }

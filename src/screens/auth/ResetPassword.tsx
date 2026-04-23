@@ -11,13 +11,39 @@ import { toast } from "sonner";
 export default function ResetPassword() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState(searchParams.get("email") ?? "");
+  const email = searchParams.get("email") ?? "";
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isCodeVerified, setIsCodeVerified] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCodeSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!email) {
+      toast.error("Reset email is missing. Please start again.");
+      router.push("/forgot-password");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await apiRequest("/api/auth/verify-reset-code", {
+        method: "POST",
+        body: JSON.stringify({ email, code }),
+      });
+      setIsCodeVerified(true);
+      toast.success("Code verified");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not verify reset code.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handlePasswordSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (password !== confirmPassword) {
@@ -43,38 +69,42 @@ export default function ResetPassword() {
 
   return (
     <AuthLayout
-      title="Set a new password"
-      subtitle="Choose a strong password to secure your account."
+      title={isCodeVerified ? "Set a new password" : "Verify reset code"}
+      subtitle={isCodeVerified ? "Choose a strong password to secure your account." : "Enter the 6-digit code sent to your email."}
       footer={<Link href="/login" className="font-medium text-foreground hover:text-accent">Back to sign in</Link>}
     >
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <div>
-          <Label>Email</Label>
-          <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-        </div>
-        <div>
-          <Label>Reset code</Label>
-          <Input
-            inputMode="numeric"
-            maxLength={6}
-            value={code}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
-            placeholder="123456"
-            required
-          />
-        </div>
-        <div>
-          <Label>New password</Label>
-          <Input type="password" placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} required />
-        </div>
-        <div>
-          <Label>Confirm password</Label>
-          <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
-        </div>
-        <Button type="submit" size="lg" className="w-full bg-primary hover:bg-primary-glow" disabled={isSubmitting}>
-          {isSubmitting ? "Resetting..." : "Reset password"}
-        </Button>
-      </form>
+      {isCodeVerified ? (
+        <form className="space-y-4" onSubmit={handlePasswordSubmit}>
+          <div>
+            <Label>New password</Label>
+            <Input type="password" placeholder="At least 8 characters" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          </div>
+          <div>
+            <Label>Confirm password</Label>
+            <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
+          </div>
+          <Button type="submit" size="lg" className="w-full bg-primary hover:bg-primary-glow" disabled={isSubmitting}>
+            {isSubmitting ? "Resetting..." : "Reset password"}
+          </Button>
+        </form>
+      ) : (
+        <form className="space-y-4" onSubmit={handleCodeSubmit}>
+          <div>
+            <Label>Reset code</Label>
+            <Input
+              inputMode="numeric"
+              maxLength={6}
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+              placeholder="123456"
+              required
+            />
+          </div>
+          <Button type="submit" size="lg" className="w-full bg-primary hover:bg-primary-glow" disabled={isSubmitting}>
+            {isSubmitting ? "Verifying..." : "Verify code"}
+          </Button>
+        </form>
+      )}
     </AuthLayout>
   );
 }

@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { listNotifications } from "@/lib/notifications-api";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const customerNav = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
@@ -33,6 +34,8 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
+  const { user } = useAuth();
+  const displayName = user?.name ?? "User";
 
   useEffect(() => {
     let mounted = true;
@@ -115,8 +118,8 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </Button>
             <Link href="/dashboard/profile" className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-secondary">
-              <Avatar className="h-8 w-8"><AvatarFallback className="bg-primary text-primary-foreground text-xs">OM</AvatarFallback></Avatar>
-              <span className="hidden text-sm font-medium sm:inline">Olivia M.</span>
+              <Avatar className="h-8 w-8"><AvatarFallback className="bg-primary text-primary-foreground text-xs">{getInitials(displayName)}</AvatarFallback></Avatar>
+              <span className="hidden text-sm font-medium sm:inline">{displayName}</span>
             </Link>
           </div>
         </header>
@@ -126,4 +129,14 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
