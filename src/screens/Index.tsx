@@ -271,12 +271,13 @@ export default function Index() {
         <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {featured.map((car) => {
             const loginToBooking = `/login?next=${encodeURIComponent(`/cars/${car.id}#booking`)}`;
+            const bookingHref = isAuthenticated ? `/cars/${car.id}#booking` : loginToBooking;
             return (
               <div key={car.id} className="space-y-3">
                 <CarCard
                   car={car}
-                  detailsHref={loginToBooking}
-                  bookingHref={loginToBooking}
+                  detailsHref={`/cars/${car.id}`}
+                  bookingHref={bookingHref}
                   isFavorite={favorites.includes(car.id)}
                   onToggleFavorite={handleToggleFavorite}
                 />

@@ -39,7 +39,7 @@ export default function Login() {
         await addFavoriteCar(favoriteCarId).catch(() => null);
       }
       toast.success("Signed in");
-      router.push(searchParams.get("next") ?? (data.user.role === "admin" ? "/admin" : "/dashboard"));
+      router.push(data.user.role === "admin" ? "/admin" : searchParams.get("next") ?? "/dashboard");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Sign in failed.");
     } finally {
@@ -50,12 +50,6 @@ export default function Login() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await signIn();
-  }
-
-  async function handleAdminLogin() {
-    setEmail("admin@rentalsphere.com");
-    setPassword("Admin12345");
-    await signIn({ email: "admin@rentalsphere.com", password: "Admin12345" });
   }
 
   return (
@@ -82,9 +76,6 @@ export default function Login() {
         </div>
         <Button type="submit" className="w-full bg-primary hover:bg-primary-glow" size="lg" disabled={isSubmitting}>
           {isSubmitting ? "Signing in..." : "Sign in"}
-        </Button>
-        <Button type="button" variant="outline" className="w-full" size="lg" onClick={handleAdminLogin} disabled={isSubmitting}>
-          Continue as Admin
         </Button>
       </form>
     </AuthLayout>

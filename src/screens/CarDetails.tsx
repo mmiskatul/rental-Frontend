@@ -118,8 +118,17 @@ export default function CarDetails() {
   const similar = cars.filter((c) => c.id !== car.id && c.type === car.type).slice(0, 3);
 
   async function handleBookingRequest() {
+    if (isAuthLoading) {
+      return;
+    }
+
     if (!car || days < 1) {
       toast.error("Choose a valid pick-up and drop-off date.");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent(`/cars/${car.id}#booking`)}`);
       return;
     }
 
@@ -324,7 +333,7 @@ export default function CarDetails() {
               </div>
             </div>
 
-            <Button className="mt-5 w-full bg-accent text-accent-foreground hover:bg-accent/90" size="lg" disabled={!car.available || isSubmittingBooking || days < 1} onClick={handleBookingRequest}>
+            <Button className="mt-5 w-full bg-accent text-accent-foreground hover:bg-accent/90" size="lg" disabled={!car.available || isAuthLoading || isSubmittingBooking || days < 1} onClick={handleBookingRequest}>
               {isSubmittingBooking ? "Sending request..." : "Request Booking"}
             </Button>
 
