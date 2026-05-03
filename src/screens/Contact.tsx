@@ -1,3 +1,5 @@
+"use client";
+
 import { Mail, Phone, MapPin, MessageCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
