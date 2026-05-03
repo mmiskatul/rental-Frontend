@@ -40,13 +40,16 @@ export default function Login() {
       });
       setAccessToken(data.tokens.access_token);
       setRefreshToken(data.tokens.refresh_token);
-      await refreshUser();
+      const currentUser = await refreshUser();
+      if (!currentUser) {
+        throw new Error("Signed in, but your session could not be loaded. Check the deployed API URL and CORS settings.");
+      }
       const favoriteCarId = searchParams.get("favoriteCar");
       if (favoriteCarId && data.user.role !== "admin") {
         await addFavoriteCar(favoriteCarId).catch(() => null);
       }
       toast.success("Signed in");
-      router.push(data.user.role === "admin" ? "/admin" : searchParams.get("next") ?? "/dashboard");
+      router.replace(getRedirectPath(data.user.role, searchParams.get("next")));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Sign in failed.");
     } finally {
@@ -87,4 +90,16 @@ export default function Login() {
       </form>
     </AuthLayout>
   );
+}
+
+function getRedirectPath(role: AuthResponse["user"]["role"], nextPath: string | null) {
+  if (role === "admin") {
+    return nextPath?.startsWith("/admin") ? nextPath : "/admin";
+  }
+
+  if (!nextPath || nextPath.startsWith("/admin") || nextPath.startsWith("/login")) {
+    return "/dashboard";
+  }
+
+  return nextPath;
 }

@@ -47,9 +47,12 @@ export default function VerifyEmail() {
       });
       setAccessToken(data.tokens.access_token);
       setRefreshToken(data.tokens.refresh_token);
-      await refreshUser();
+      const currentUser = await refreshUser();
+      if (!currentUser) {
+        throw new Error("Account verified, but your session could not be loaded. Check the deployed API URL and CORS settings.");
+      }
       toast.success("Account verified");
-      router.push(data.user.role === "admin" ? "/admin" : "/dashboard");
+      router.replace(data.user.role === "admin" ? "/admin" : "/dashboard");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Verification failed.");
     } finally {

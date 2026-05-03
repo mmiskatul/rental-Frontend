@@ -25,7 +25,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     }
 
     if (!isAllowed) {
-      window.location.replace("/login");
+      window.location.replace(user.role === "admin" ? "/admin" : "/dashboard");
     }
   }, [isAllowed, isLoading, pathname, user]);
 
