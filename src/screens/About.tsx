@@ -1,3 +1,5 @@
+"use client";
+
 import { Award, Sparkles, Users, Globe } from "lucide-react";
 
 export default function About() {
