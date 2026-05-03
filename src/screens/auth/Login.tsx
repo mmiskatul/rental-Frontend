@@ -7,13 +7,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, setAccessToken, setRefreshToken } from "@/lib/api";
 import { addFavoriteCar } from "@/lib/favorites-api";
 import { toast } from "sonner";
 
 type AuthResponse = {
   user: {
     role: "customer" | "admin" | "landlord";
+  };
+  tokens: {
+    access_token: string;
+    refresh_token: string;
+    token_type: string;
   };
 };
 
@@ -33,6 +38,8 @@ export default function Login() {
         method: "POST",
         body: JSON.stringify(credentials),
       });
+      setAccessToken(data.tokens.access_token);
+      setRefreshToken(data.tokens.refresh_token);
       await refreshUser();
       const favoriteCarId = searchParams.get("favoriteCar");
       if (favoriteCarId && data.user.role !== "admin") {

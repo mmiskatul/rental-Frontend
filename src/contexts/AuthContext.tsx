@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, getRefreshToken, setAccessToken, setRefreshToken } from "@/lib/api";
 
 export type AuthUser = {
   id: string;
@@ -33,6 +33,12 @@ type UserResponse = {
   is_verified: boolean;
 };
 
+type TokenResponse = {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,11 +50,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return currentUser;
     } catch {
       try {
-        await apiRequest("/api/auth/refresh", { method: "POST" });
+        const storedRefreshToken = getRefreshToken();
+        const tokens = await apiRequest<TokenResponse>("/api/auth/refresh", {
+          method: "POST",
+          body: storedRefreshToken ? JSON.stringify({ refresh_token: storedRefreshToken }) : undefined,
+        });
+        setAccessToken(tokens.access_token);
+        setRefreshToken(tokens.refresh_token);
         const currentUser = await apiRequest<UserResponse>("/api/auth/me");
         setUser(currentUser);
         return currentUser;
       } catch {
+        setAccessToken(null);
+        setRefreshToken(null);
         setUser(null);
         return null;
       }
@@ -57,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function logout() {
     await apiRequest("/api/auth/logout", { method: "POST" }).catch(() => null);
+    setAccessToken(null);
+    setRefreshToken(null);
     setUser(null);
   }
 

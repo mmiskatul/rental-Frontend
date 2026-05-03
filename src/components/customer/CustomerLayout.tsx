@@ -34,7 +34,7 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const displayName = user?.name ?? "User";
 
   useEffect(() => {
@@ -94,8 +94,8 @@ export function CustomerLayout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t border-border p-3">
-          <Button asChild variant="ghost" className="w-full justify-start gap-3 text-muted-foreground">
-            <Link href="/"><LogOut className="h-4 w-4" /> Sign out</Link>
+          <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground" onClick={logout}>
+            <LogOut className="h-4 w-4" /> Sign out
           </Button>
         </div>
       </aside>
